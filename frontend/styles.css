@@ -1,0 +1,172 @@
+/* ────────────────────────────────────────────────────────────
+   Yummara — design tokens
+   Clean modern · olive green primary · warm cream canvas
+   Fraunces (display) + Inter (UI/body, tabular nums)
+   ──────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ── color: brand ── */
+  --yum-primary:        #4a6b3a;   /* olive green, anchor */
+  --yum-primary-700:    #3b5630;
+  --yum-primary-600:    #45633a;
+  --yum-primary-500:    #4a6b3a;
+  --yum-primary-400:    #6a8957;
+  --yum-primary-100:    #e6ecdc;
+  --yum-primary-50:     #f1f5e9;
+
+  /* ── color: accent (used sparingly) ── */
+  --yum-mustard:        #c19829;
+  --yum-mustard-bg:     #f6e9c2;
+
+  /* ── color: canvas + surface ── */
+  --yum-cream:          #fbf7f0;   /* primary background */
+  --yum-cream-deep:     #f4eee2;
+  --yum-paper:          #ffffff;   /* surface / cards */
+  --yum-border:         #e9e1d0;
+  --yum-border-soft:    #f0e9da;
+  --yum-divider:        #ece4d3;
+
+  /* ── color: text ── */
+  --yum-ink:            #1d1812;
+  --yum-ink-2:          #4f463a;
+  --yum-ink-3:          #7a6f5e;
+  --yum-ink-4:          #a89d8a;
+  --yum-ink-on-primary: #fbf7f0;
+
+  /* ── color: semantic ── */
+  --yum-veg:            #006d34;   /* food-safety green */
+  --yum-veg-bg:         #ffffff;
+  --yum-nonveg:         #b0220a;   /* food-safety red  */
+  --yum-nonveg-bg:      #ffffff;
+  --yum-online:         #2c8a52;
+  --yum-success:        #2c8a52;
+  --yum-warning:        #c08017;
+  --yum-danger:         #b94432;
+  --yum-info:           #3a6a8c;
+
+  /* ── radius / shadow / spacing ── */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-pill: 999px;
+
+  --shadow-sm:  0 1px 2px rgba(40,30,15,0.04), 0 1px 1px rgba(40,30,15,0.03);
+  --shadow-md:  0 1px 2px rgba(40,30,15,0.05), 0 8px 24px rgba(40,30,15,0.06);
+  --shadow-lg:  0 2px 4px rgba(40,30,15,0.05), 0 18px 40px rgba(40,30,15,0.08);
+  --shadow-up:  0 -2px 24px rgba(40,30,15,0.08);
+
+  /* ── type ── */
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
+  --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+/* All Yummara surfaces opt in via .yum class */
+.yum, .yum * {
+  box-sizing: border-box;
+}
+.yum {
+  font-family: var(--font-sans);
+  color: var(--yum-ink);
+  background: var(--yum-cream);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
+}
+
+/* tabular numerals everywhere a price/stat could land */
+.yum .num,
+.yum [data-num] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+.yum h1, .yum h2, .yum h3, .yum h4,
+.yum .display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  color: var(--yum-ink);
+  font-variation-settings: 'opsz' 110, 'SOFT' 30;
+  margin: 0;
+}
+
+.yum a { color: inherit; text-decoration: none; }
+.yum button { font-family: inherit; cursor: pointer; }
+.yum input, .yum textarea { font-family: inherit; }
+
+/* ── striped placeholder for food imagery ── */
+.yum-img {
+  background:
+    repeating-linear-gradient(45deg, #ece4d3 0 8px, #f3ecdc 8px 16px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8a7d65;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  overflow: hidden;
+}
+.yum-img.tone-warm {
+  background:
+    repeating-linear-gradient(45deg, #ead7b9 0 8px, #f0deba 8px 16px);
+  color: #7a5d2d;
+}
+.yum-img.tone-green {
+  background:
+    repeating-linear-gradient(45deg, #d4dec1 0 8px, #dde7c8 8px 16px);
+  color: #4d5e30;
+}
+.yum-img.tone-clay {
+  background:
+    repeating-linear-gradient(45deg, #e5cdb8 0 8px, #ebd5be 8px 16px);
+  color: #7d4c2c;
+}
+.yum-img.tone-ink {
+  background:
+    repeating-linear-gradient(45deg, #2a241b 0 8px, #322b21 8px 16px);
+  color: #c4b89e;
+}
+.yum-img > span {
+  background: rgba(251,247,240,0.78);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* ── veg / non-veg indicator (food-safety standard) ── */
+.veg-ind, .nonveg-ind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  background: var(--yum-paper);
+  flex-shrink: 0;
+}
+.veg-ind { border: 1.5px solid var(--yum-veg); }
+.nonveg-ind { border: 1.5px solid var(--yum-nonveg); }
+.veg-ind > i {
+  width: 50%; height: 50%; border-radius: 999px;
+  background: var(--yum-veg); display: block;
+}
+.nonveg-ind > i {
+  width: 0; height: 0; display: block;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid var(--yum-nonveg);
+}
+.veg-ind.sm, .nonveg-ind.sm { width: 14px; height: 14px; }
+.veg-ind.md, .nonveg-ind.md { width: 16px; height: 16px; }
+.veg-ind.lg, .nonveg-ind.lg { width: 20px; height: 20px; }
+.nonveg-ind.sm > i { border-left-width: 4px; border-right-width: 4px; border-bottom-width: 6px; }
+.nonveg-ind.lg > i { border-left-width: 6px; border-right-width: 6px; border-bottom-width: 10px; }
+
+/* ── scrollbar hide for in-canvas demos ── */
+.yum-scroll::-webkit-scrollbar { display: none; }
+.yum-scroll { scrollbar-width: none; }
