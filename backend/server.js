@@ -6,7 +6,12 @@ const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
-const ALLOWED_ORIGINS = ['http://localhost:5173', 'http://localhost:8080'];
+
+// CORS_ORIGINS env var: comma-separated list of allowed origins
+// e.g. "https://yummara.vercel.app,http://localhost:5173"
+const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
+  : ['http://localhost:5173', 'http://localhost:8080'];
 
 const io = new Server(server, {
   cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] },
@@ -25,6 +30,7 @@ app.use('/api/cooks',  require('./src/routes/cooks'));
 app.use('/api/orders', require('./src/routes/orders'));
 app.use('/api/user',   require('./src/routes/users'));
 app.use('/api/dishes', require('./src/routes/dishes'));
+app.use('/api/chat',   require('./src/routes/chat'));
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 

@@ -1,220 +1,229 @@
 # Yummara — Agent Context
 
 ## What is Yummara?
-Yummara is a **home-cook food delivery marketplace** for Indian cities. It connects customers with verified home cooks (not restaurants). Think Swiggy/Zomato but for Padma-aunty's Tamilian thali or Rukmini's Mangalorean fish curry.
+Yummara is a **home-cook food delivery marketplace** for Indian cities. Connects customers with verified home cooks (not restaurants). Think Swiggy/Zomato but for Padma-aunty's Tamilian thali or Rukmini's Mangalorean fish curry.
 
 Target city: Bangalore (HSR Layout, Koramangala, Indiranagar, Whitefield).
 
 ---
 
-## End Goal (full product)
-1. Customer browses verified home cooks nearby → views menus → places order
-2. Cook receives order in real-time → accepts/starts cooking → marks ready
-3. Delivery partner picks up and tracks route
-4. Customer pays via UPI/card/COD
-5. Reviews and reorder system
+## How to run (always do this first)
 
-**We are building incrementally. Do not build ahead of the current phase.**
-
----
-
-## Current State
-A complete pixel-perfect UI prototype lives in `/frontend/`. Built as a Claude Design handoff bundle using React 18 (CDN) + Babel standalone + vanilla CSS. No build step. Runs with:
 ```bash
-cd /sfs/yummara-v1/frontend && python3 -m http.server 8080
+# Terminal 1 — backend
+cd /sfs/yummara-v1/backend
+export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh"
+pkill -f "node server.js" 2>/dev/null; sleep 1; node server.js
+
+# Terminal 2 — frontend
+cd /sfs/yummara-v1/frontend
+export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh"
+npm run dev
 ```
-All screens are already designed:
-- Customer: Home feed → Cook profile → Dish modal → Cart → Checkout → Order tracking
-- Cook: Landing page + Dashboard (cook.html)
-- Design system canvas (colors, type, buttons, cards, etc.)
+
+- Customer app: http://localhost:5173
+- Cook dashboard: http://localhost:5173/cook.html
+- Mobile view: Chrome DevTools → Cmd+Shift+M (or Ctrl+Shift+M)
+
+**NVM is required** — `node` is not in PATH without it.
+
+**Port 3001 busy?** Run: `pkill -f "node server.js"`
+
+**Disk full?** Clear pip cache: `rm -rf /home/jovyan/.cache/pip`
 
 ---
 
-## MVP Scope — Phase 1 (what we are building NOW)
-**No real auth. No real payments. No delivery routing.**
+## Build Phases
 
-Exactly this:
-1. Customer enters name + phone (stored in localStorage, no password, no OTP)
-2. Customer browses cooks, adds to cart, places order
-3. Order is saved to backend database
-4. Cook logs in by phone (pre-seeded accounts, no password)
-5. Cook sees incoming orders on their dashboard in real-time
-6. Cook clicks Accept → customer tracking screen updates
-7. Cook clicks Ready → order marked done
-
-That is the entire Phase 1 scope. Nothing else.
-
----
-
-## Build Phases (do not skip ahead)
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 0 | Design prototype (frontend only, static data) | ✅ Done |
-| 1 | Order flow: place order → cook receives → cook accepts | ✅ Done |
-| 2 | Phone OTP auth (customers + cooks), JWT, cook dish CRUD, customer profile | ✅ Done |
-| 3 | Delivery: partner app, live tracking | ⬜ Pending |
+| 1 | Order flow: place → cook receives → cook accepts | ✅ Done |
+| 2 | Phone OTP auth, JWT, cook dish CRUD, customer profile | ✅ Done |
+| 2.5 | Vite migration, search, WhatsApp OTP, two-way chat | ✅ Done |
+| 3 | Delivery partner app, live tracking | ⬜ Pending |
 | 4 | Payments: Razorpay / UPI | ⬜ Pending |
 
 ---
 
 ## Tech Stack
 
-### Frontend
-- **Currently**: React 18 via CDN + Babel standalone, vanilla CSS, all JSX in `/project/`
-- **Future**: Will migrate to Vite + React when backend integration makes CDN approach painful
-- **Do NOT** mix Vite and Babel standalone in the same project — they conflict
+### Frontend — Vite + React 18
+- **Entry points**: `src/main.jsx` (customer), `src/cook-main.jsx` (cook)
+- **Port**: 5173 (Vite dev server)
+- **Proxy**: `/api/*` and `/socket.io` proxied to `localhost:3001` (see vite.config.js)
+  - This means the frontend never calls `localhost:3001` directly — always relative `/api/...`
+- **Responsive**: `useIsMobile()` hook in App.jsx (< 768px = mobile layout)
 
-### Backend (to be created at `/backend/`)
-- **Runtime**: Node.js 20 + Express
-- **Database**: SQLite via `better-sqlite3` (zero setup, file-based, perfect for local MVP)
-- **Real-time**: Socket.io (cook dashboard ↔ customer tracking)
-- **Auth (MVP)**: None. Just a phone number lookup. No JWT, no sessions for Phase 1.
-
-### Directory layout
-```
-yummara-v1/
-  frontend/                    # React 18 CDN app (no bundler)
-    index.html                 # Customer entry point
-    cook.html                  # Cook entry point
-    styles.css                 # Design tokens + base styles
-    assets/                    # Reference design images (ref-01..07.jpeg)
-    src/
-      app.jsx                  # Customer app root + routing + state
-      components/
-        ui.jsx                 # Icons (Ic), YButton, YBadge, YChip, Veg/NonVeg
-        cards.jsx              # DishCard, CookCard, design-system card artboards
-        design-canvas.jsx      # DesignCanvas, DCSection, DCArtboard
-        tweaks-panel.jsx       # TweaksPanel, useTweaks — dev-only theme knobs
-      screens/
-        customer-home.jsx      # CustomerHomeMobile, CustomerHomeDesktop
-        cook-landing.jsx       # CookLandingDesktop, CookLandingMobile (marketing)
-        order-flow.jsx         # CookProfile, DishModal, CartSheet, CheckoutScreen, TrackingScreen
-        cook-dashboard.jsx     # CookApp, CookLoginScreen, CookDashboardScreen, OrderCard
-      data/
-        cooks.jsx              # YUM_COOKS seed data, YUM_INDEX, yumFindCookByName
-  backend/                     # Node.js + Express API
-    server.js
-    package.json
-    yummara.db                 # SQLite database file
-    src/
-      db/index.js              # Schema creation + seeding (runs on startup)
-      routes/cooks.js          # GET /api/cooks, POST /api/cooks/login
-      routes/orders.js         # POST /api/orders, GET/PUT /api/orders
-      socket/index.js          # Socket.io room handlers
-  CLAUDE.md                    # This file
-  progress.md                  # Daily build log
-```
+### Backend — Node.js + Express + SQLite
+- **Port**: 3001
+- **Database**: `better-sqlite3` (synchronous), file at `backend/yummara.db`
+- **Auth**: JWT (7-day), stored in localStorage as `yum_auth`
+- **Real-time**: Socket.io v4
+- **OTP**: WhatsApp Cloud API (Meta) → fallback devCode in response if fails
+- **CORS**: allows localhost:5173 and localhost:8080
 
 ---
 
-## Data conventions
-- Currency: Indian Rupee `₹` always. Never use `$` or USD.
-- Design tokens in `styles.css` (`--yum-primary`, `--yum-cream`, `--yum-border`, etc.) must be preserved.
-- Prototype seed data (6 cooks, all dishes) is the starting DB seed.
-- Cook IDs are strings: `padma`, `rukmini`, `aarti`, `lakshmi`, `bhumi`, `krishnan`
-- Dish IDs follow `{cook-short}-{n}`: `pad-1`, `ruk-3`, `lak-6`, etc.
-- All timestamps: ISO 8601 UTC stored, display in IST
+## Directory Layout
 
-## API design (Phase 1 + 2)
-```
-POST   /api/auth/send-otp          — send OTP (body: phone, role=customer|cook)
-POST   /api/auth/verify-otp        — verify OTP → returns JWT + user/cook
-
-GET    /api/cooks                  — list all cooks
-GET    /api/cooks/:id              — single cook + dishes
-POST   /api/cooks/login            — legacy (Phase 1); use /api/auth/* for Phase 2+
-PUT    /api/cooks/:id/online       — toggle cook online/offline
-
-POST   /api/orders                 — customer places order (optional JWT)
-GET    /api/orders?cookId=X        — cook fetches their pending orders
-GET    /api/orders/:id             — single order
-PUT    /api/orders/:id/status      — cook updates status (accepted|cooking|ready|cancelled)
-
-GET    /api/user/profile           — customer profile (JWT required)
-PUT    /api/user/profile           — update name (JWT required)
-GET    /api/user/orders            — order history (JWT required)
-GET    /api/user/addresses         — saved addresses (JWT required)
-POST   /api/user/addresses         — add address (JWT required)
-PUT    /api/user/addresses/:id     — update address (JWT required)
-DELETE /api/user/addresses/:id     — delete address (JWT required)
-
-POST   /api/dishes                 — cook adds dish (JWT required, cook only)
-PUT    /api/dishes/:id             — cook edits dish (JWT required, own dish)
-DELETE /api/dishes/:id             — cook deletes dish (JWT required, own dish)
-PUT    /api/dishes/:id/available   — toggle dish availability (JWT required, own dish)
-```
-
-Socket.io events:
-- `new_order`     — server → cook room when a new order arrives
-- `order_update`  — server → customer when cook changes order status
-
-## Auth conventions
-- JWT tokens expire in 7 days, stored in `localStorage` under key `yum_auth`
-- `window.YUM_AUTH` mirrors localStorage on page load (set by auth.jsx)
-- Payload: `{ sub: userId|cookId, role: 'customer'|'cook', phone }`
-- OTP: 6 digits, 10-minute expiry, previous unused OTPs invalidated on new request
-- Dev mode: if MSG91_AUTH_KEY is empty in .env, OTP prints to server console
-
----
-
-## Directory layout (updated for Phase 2)
 ```
 yummara-v1/
   frontend/
-    index.html          # Customer app — script load order is the "import graph"
-    cook.html           # Cook app
-    styles.css
-    src/
-      app.jsx           # Customer app root; authUser state, NavCtx provider
-      components/
-        ui.jsx          # Ic, YButton, YBadge, YChip, Veg/NonVeg, YumLogo
-        cards.jsx
-        design-canvas.jsx
-        tweaks-panel.jsx
-      screens/
-        auth.jsx             # AuthModal (phone OTP, works for customer+cook), window.YUM_AUTH
-        customer-home.jsx    # CustomerHomeMobile, CustomerHomeDesktop, CustomerNav
-        customer-profile.jsx # CustomerProfileScreen — orders, addresses, reorder
-        cook-landing.jsx
-        cook-dashboard.jsx   # CookApp, CookLoginScreen→AuthModal, CookDashboardScreen, DishManagerTab
-        order-flow.jsx       # CookProfile, DishModal, CartSheet, CheckoutScreen, TrackingScreen
-      data/
-        cooks.jsx            # YUM_COOKS prototype data (frontend fallback / design system)
-  backend/
-    server.js
-    .env                     # JWT_SECRET, MSG91 keys, PORT
+    index.html                  # Customer app entry
+    cook.html                   # Cook app entry
+    styles.css                  # Design tokens + base styles
+    vite.config.js              # Vite config — proxy, host, allowedHosts
     package.json
-    yummara.db
     src/
-      db/index.js            # Tables: cooks, dishes, orders, order_items, users, otps, saved_addresses
-      middleware/
-        auth.js              # requireAuth, optionalAuth (JWT verify)
+      main.jsx                  # ReactDOM.createRoot → <App/>
+      cook-main.jsx             # ReactDOM.createRoot → <CookApp/>
+      App.jsx                   # Customer app: routing, cart state, NavCtx.Provider
+      lib/
+        NavCtx.js               # React context for nav + cart + auth
+        auth.js                 # loadAuth / saveAuth / clearAuth (localStorage)
+      data/
+        cooks.js                # YUM_COOKS, YUM_INDEX, yumFindCookByName, yumFindDish
+      components/
+        ui.jsx                  # Ic, YButton, YBadge, YChip, YImg, Veg, NonVeg, Spinner
+        cards.jsx               # CookCard, DishCard
+      screens/
+        Auth.jsx                # AuthModal (phone OTP flow, customer + cook)
+        CustomerHome.jsx        # CustomerHomeDesktop, CustomerHomeMobile
+        CustomerProfile.jsx     # Order history, saved addresses, reorder
+        OrderFlow.jsx           # CookProfile, DishModal, CartSheet, CheckoutScreen, TrackingScreen
+        CookDashboard.jsx       # CookApp, CookDashboardScreen, DishManagerTab, DishForm
+        Chat.jsx                # CustomerChatPanel, CookInbox
+  backend/
+    server.js                   # Express app, Socket.io, route mounting
+    .env                        # Secrets — never commit (see .env.example)
+    .env.example                # Template for required env vars
+    yummara.db                  # SQLite database (gitignored)
+    src/
+      db/index.js               # Schema + seeding (runs on startup)
+      middleware/auth.js        # requireAuth, optionalAuth (JWT)
       routes/
-        auth.js              # POST /api/auth/send-otp, POST /api/auth/verify-otp
-        cooks.js             # GET /api/cooks, GET /api/cooks/:id, etc.
-        orders.js
-        users.js             # GET/PUT /api/user/profile, orders, addresses CRUD
-        dishes.js            # Cook dish CRUD (JWT-protected)
-      socket/index.js
+        auth.js                 # POST /api/auth/send-otp, verify-otp
+        cooks.js                # GET /api/cooks, GET /api/cooks/:id, online toggle
+        orders.js               # POST /api/orders, GET, PUT status
+        users.js                # Profile, order history, addresses
+        dishes.js               # Cook dish CRUD
+        chat.js                 # Conversations + messages (two-way)
+      socket/index.js           # Socket.io event handlers
 ```
-
-## Known errors / things to avoid
-- **CORS**: The frontend (port 8080) calls backend (port 3001). Always set `cors({ origin: 'http://localhost:8080' })` in Express.
-- **file:// protocol**: Never open the CDN prototype via `file://` — Babel standalone can't load cross-origin JSX. Always use `python3 -m http.server`.
-- **Window globals**: The prototype exposes components via `Object.assign(window, {...})`. This is intentional — Babel standalone doesn't support ES modules. Don't refactor this unless migrating fully to Vite.
-- **better-sqlite3 vs sqlite3**: Use `better-sqlite3` (synchronous, simpler). Do not use the async `sqlite3` package — it adds unnecessary callback complexity for a local MVP.
-- **Socket.io version**: Use socket.io v4. v2/v3 have breaking API changes.
 
 ---
 
-## Cook seed data (Phase 1 pre-seeded accounts)
-| cookId     | Name              | Phone (dummy) | Area          |
-|------------|-------------------|---------------|---------------|
-| padma      | Padma Sundaram    | 9900000001    | Indiranagar   |
-| rukmini    | Rukmini D'Souza   | 9900000002    | Koramangala   |
-| aarti      | Aarti Bisht       | 9900000003    | HSR Sector 2  |
-| lakshmi    | Lakshmi Iyer      | 9900000004    | HSR Sector 6  |
-| bhumi      | Bhumi Patel       | 9900000005    | Koramangala 5th|
-| krishnan   | Krishnan Pillai   | 9900000006    | Whitefield    |
+## Database Tables
 
-To log in as a cook in Phase 1: enter the phone number above, no password.
+| Table | Purpose |
+|-------|---------|
+| cooks | Seeded cook profiles |
+| dishes | Cook menus (editable by cooks) |
+| orders | Customer orders |
+| order_items | Line items per order |
+| users | Customer accounts (created on first OTP verify) |
+| otps | 6-digit codes, 10-min expiry |
+| saved_addresses | Customer delivery addresses |
+| conversations | Chat threads (cook_id + user_phone, unique) |
+| chat_messages | Individual messages, pruned after 3 days |
+
+---
+
+## API Reference
+
+```
+# Auth
+POST   /api/auth/send-otp              body: { phone, role }
+POST   /api/auth/verify-otp            body: { phone, code, role }
+
+# Cooks
+GET    /api/cooks
+GET    /api/cooks/:id
+PUT    /api/cooks/:id/online           JWT cook
+
+# Orders
+POST   /api/orders                     optional JWT customer
+GET    /api/orders?cookId=X
+PUT    /api/orders/:id/status          JWT cook
+
+# Customer
+GET    /api/user/profile               JWT customer
+PUT    /api/user/profile
+GET    /api/user/orders
+GET/POST /api/user/addresses
+PUT/DELETE /api/user/addresses/:id
+
+# Dishes
+POST   /api/dishes                     JWT cook
+PUT    /api/dishes/:id                 JWT cook (own dish)
+DELETE /api/dishes/:id                 JWT cook (own dish)
+PUT    /api/dishes/:id/available       JWT cook
+
+# Chat
+POST   /api/chat/:cookId               customer sends message (no auth, needs user_phone)
+GET    /api/chat/conversations         JWT cook — inbox
+GET    /api/chat/conversations/:id     JWT cook — thread + marks read
+POST   /api/chat/conversations/:id/reply  JWT cook — reply
+GET    /api/chat/customer/:cookId?user_phone=X  customer fetches their thread
+```
+
+## Socket.io Events
+
+| Event | Direction | Payload |
+|-------|-----------|---------|
+| `join_cook` | client → server | cookId |
+| `join_order` | client → server | orderId |
+| `new_order` | server → cook room | order object |
+| `order_update` | server → order room | { id, status } |
+| `new_message` | server → cook room + conv room | { conversation_id, message } |
+
+---
+
+## Auth Conventions
+- JWT: 7-day expiry, stored in localStorage key `yum_auth`
+- Payload: `{ sub: userId|cookId, role: 'customer'|'cook', phone }`
+- OTP: 6 digits, 10-min expiry, previous unused OTPs invalidated on new request
+- `DEV_OTP=true` in .env → OTP returned in API response as `devCode`, shown in modal
+
+---
+
+## .env Variables
+
+```
+JWT_SECRET=                    # Change before production
+PORT=3001
+WHATSAPP_TOKEN=                # Meta WhatsApp Cloud API token
+WHATSAPP_PHONE_NUMBER_ID=      # Meta phone number ID
+WHATSAPP_TEMPLATE_NAME=yummara_otp
+MSG91_AUTH_KEY=                # Fallback SMS (DLT registration needed for delivery)
+MSG91_SENDER_ID=YUMMARA
+MSG91_TEMPLATE_ID=
+DEV_OTP=true                   # Remove in production
+```
+
+---
+
+## Cook Seed Accounts
+
+| cookId | Name | Phone | Area |
+|--------|------|-------|------|
+| padma | Padma Sundaram | 9900000001 | Indiranagar |
+| rukmini | Rukmini D'Souza | 9900000002 | Koramangala |
+| aarti | Aarti Bisht | 9900000003 | HSR Sector 2 |
+| lakshmi | Lakshmi Iyer | 9900000004 | HSR Sector 6 |
+| bhumi | Bhumi Patel | 9900000005 | Koramangala 5th |
+| krishnan | Krishnan Pillai | 9900000006 | Whitefield |
+
+---
+
+## Known Gotchas / Things to Avoid
+
+- **Never call `localhost:3001` directly from frontend** — always use relative `/api/...` paths. Vite proxies them. Direct calls break in remote dev environments.
+- **NVM required** — always source NVM before running node/npm commands
+- **DishForm must stay at module level** — defining it inside DishManagerTab caused focus loss on every keystroke (React unmounts/remounts inline component definitions on each render)
+- **`better-sqlite3` is synchronous** — don't use async/await with db calls, they return directly
+- **Socket.io v4** — don't downgrade, v2/v3 have breaking API differences
+- **CORS**: allowed origins are `['http://localhost:5173', 'http://localhost:8080']` in server.js
+- **MSG91 returns success even when DLT blocks delivery** — use DEV_OTP=true or WhatsApp for testing
+- **Old CDN files** (`src/screens/auth.jsx`, `cook-dashboard.jsx` etc.) still exist but are unused — Vite uses the PascalCase versions (`Auth.jsx`, `CookDashboard.jsx`)

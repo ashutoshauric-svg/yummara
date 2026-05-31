@@ -3,8 +3,8 @@ import { io } from 'socket.io-client';
 import { YButton, Veg, NonVeg } from '../components/ui';
 import { AuthModal } from './Auth';
 import { loadAuth, saveAuth, clearAuth } from '../lib/auth';
-
-const API = '';
+import { CookInbox } from './Chat';
+import { API_URL as API } from '../lib/config';
 
 function timeAgo(isoUtc) {
   const ms = Date.now() - new Date(isoUtc.endsWith('Z') ? isoUtc : isoUtc + 'Z').getTime();
@@ -280,7 +280,7 @@ function CookDashboardScreen({ cook: initialCook, token, onLogout }) {
 
   React.useEffect(() => {
     fetchOrders();
-    const socket = io();
+    const socket = io(API);
     socketRef.current = socket;
     socket.emit('join_cook', cook.id);
     socket.on('new_order', (order) => {
@@ -354,7 +354,7 @@ function CookDashboardScreen({ cook: initialCook, token, onLogout }) {
         </div>
 
         <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--yum-border)', marginBottom: 24 }}>
-          {[['orders', 'Orders'], ['menu', 'My Menu']].map(([key, label]) => (
+          {[['orders', 'Orders'], ['menu', 'My Menu'], ['messages', 'Messages']].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)} style={{
               padding: '12px 20px', fontSize: 14, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer',
               color: tab === key ? 'var(--yum-ink)' : 'var(--yum-ink-3)',
@@ -399,7 +399,8 @@ function CookDashboardScreen({ cook: initialCook, token, onLogout }) {
           </div>
         )}
 
-        {tab === 'menu' && <DishManagerTab cook={cook} token={token}/>}
+        {tab === 'menu'     && <DishManagerTab cook={cook} token={token}/>}
+        {tab === 'messages' && <CookInbox cookId={cook.id} token={token}/>}
       </div>
     </div>
   );

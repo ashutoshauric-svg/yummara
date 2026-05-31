@@ -1,8 +1,7 @@
 import React from 'react';
 import { YButton, Ic } from '../components/ui';
 import { saveAuth } from '../lib/auth';
-
-const API = '';
+import { API_URL as API } from '../lib/config';
 
 export function AuthModal({ role = 'customer', onSuccess, onClose }) {
   const [step, setStep] = React.useState('phone');

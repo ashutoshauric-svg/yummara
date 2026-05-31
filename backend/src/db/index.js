@@ -94,7 +94,10 @@ const SEED_COOKS = [
   },
 ];
 
-const db = new Database(path.join(__dirname, '../../yummara.db'));
+// DB_PATH env var lets Railway (or any host) point to a persistent volume
+// e.g. DB_PATH=/data/yummara.db on Railway, unset = local dev default
+const dbPath = process.env.DB_PATH || path.join(__dirname, '../../yummara.db');
+const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
@@ -176,6 +179,28 @@ db.exec(`
     address     TEXT NOT NULL,
     is_default  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+// Chat tables
+db.exec(`
+  CREATE TABLE IF NOT EXISTS conversations (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    cook_id         TEXT NOT NULL REFERENCES cooks(id),
+    user_phone      TEXT NOT NULL,
+    user_name       TEXT,
+    last_message_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(cook_id, user_phone)
+  );
+
+  CREATE TABLE IF NOT EXISTS chat_messages (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id INTEGER NOT NULL REFERENCES conversations(id),
+    sender          TEXT NOT NULL CHECK(sender IN ('customer','cook')),
+    body            TEXT NOT NULL,
+    read            INTEGER NOT NULL DEFAULT 0,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
 

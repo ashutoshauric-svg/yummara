@@ -2,6 +2,7 @@ import React from 'react';
 import { io } from 'socket.io-client';
 import { NavCtx } from './lib/NavCtx';
 import { loadAuth, clearAuth } from './lib/auth';
+import { API_URL } from './lib/config';
 import { YUM_INDEX, yumFindCookByName, yumFindDish } from './data/cooks';
 import { Ic } from './components/ui';
 import { CustomerHomeDesktop, CustomerHomeMobile } from './screens/CustomerHome';
@@ -77,7 +78,7 @@ export function App() {
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (authUser?.token) headers['Authorization'] = `Bearer ${authUser.token}`;
-      const res = await fetch('/api/orders', {
+      const res = await fetch(`${API_URL}/api/orders`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -96,7 +97,7 @@ export function App() {
       setCart([]);
       setCartOpen(false);
 
-      if (!socketRef.current) socketRef.current = io();
+      if (!socketRef.current) socketRef.current = io(API_URL);
       socketRef.current.emit('join_order', data.id);
       socketRef.current.off('order_update');
       socketRef.current.on('order_update', (updated) => {

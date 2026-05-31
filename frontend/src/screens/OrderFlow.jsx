@@ -3,6 +3,7 @@ import { Ic, YButton, YChip, YBadge, YImg, Veg, NonVeg } from '../components/ui'
 import { DishCard } from '../components/cards';
 import { NavCtx, useNav } from '../lib/NavCtx';
 import { YUM_INDEX } from '../data/cooks';
+import { CustomerChatPanel } from './Chat';
 
 // ─── Shared header ────────────────────────────────────────────────
 function ScreenHeader({ title, subtitle, right, isMobile }) {
@@ -40,6 +41,7 @@ export function CookProfile({ cookId, isMobile }) {
   const cook = YUM_INDEX.byId[cookId];
   const { openDish, getQty, addToCart, incCart, decCart } = useNav();
   const [filter, setFilter] = React.useState('all');
+  const [chatOpen, setChatOpen] = React.useState(false);
   if (!cook) return <div style={{ padding: 40 }}>Cook not found.</div>;
 
   const filtered = cook.dishes.filter(d => filter === 'veg' ? d.veg : filter === 'nonveg' ? !d.veg : true);
@@ -60,10 +62,15 @@ export function CookProfile({ cookId, isMobile }) {
             <Stat label="Min order" value={<span className="num">₹{cook.minOrder}</span>}/>
             <Stat label="Languages" value={<span style={{ fontSize: 13 }}>{cook.languages}</span>}/>
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, marginTop: 18, flexWrap: 'wrap', alignItems: 'center' }}>
             <YBadge tone="verified" icon={Ic.shield({ s: 12 })}>FSSAI verified</YBadge>
             <YBadge tone="neutral" icon={Ic.clock({ s: 12 })}>{cook.schedule}</YBadge>
+            <button onClick={() => setChatOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 14px', height: 32, borderRadius: 'var(--r-pill)', border: '1px solid var(--yum-border)', background: 'var(--yum-paper)', fontSize: 12, fontWeight: 600, color: 'var(--yum-ink-2)', cursor: 'pointer' }}>
+              <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M3 5h14v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5Z"/><path d="m7 9 3 2.5L13 9" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Message cook
+            </button>
           </div>
+          {chatOpen && <CustomerChatPanel cook={cook} onClose={() => setChatOpen(false)}/>}
         </div>
         <div style={{ position: 'relative', overflow: 'hidden', borderRadius: isMobile ? 0 : 'var(--r-xl)', aspectRatio: isMobile ? '5/3' : '4/5', margin: isMobile ? '20px 0 0' : 0 }}>
           <YImg tone={cook.tone} label={`${cook.short}'s kitchen`} style={{ position: 'absolute', inset: 0 }}/>

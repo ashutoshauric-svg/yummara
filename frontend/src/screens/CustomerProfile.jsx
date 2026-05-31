@@ -1,8 +1,7 @@
 import React from 'react';
 import { YButton, Ic } from '../components/ui';
 import { NavCtx } from '../lib/NavCtx';
-
-const API = '';
+import { API_URL as API } from '../lib/config';
 
 export function CustomerProfileScreen({ isMobile }) {
   const { authUser, openAuth, logout, go, addToCart, reset } = React.useContext(NavCtx);

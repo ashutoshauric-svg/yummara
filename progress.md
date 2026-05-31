@@ -1,185 +1,131 @@
 # Yummara — Build Progress Log
 
-> Updated daily. Agents: read this before starting any session. It tells you what phase we're in, what was last done, and what errors to avoid repeating.
+> Updated after every session. Read this before starting any new session.
 
 ---
 
-## 2026-05-14 — Day 1
-
+## 2026-05-14 — Day 1 (Session 1)
 ### Status: Phase 0 complete → Phase 1 starting
-
-### What exists
-- `/project/` — complete UI prototype (React 18 CDN + Babel standalone)
-- All screens designed and clickable: home, cook profile, dish modal, cart, checkout, tracking, design system
-- 6 home cooks seeded in prototype data with full dish menus
-- Tweaks panel: persona toggle (customer/cook), device (desktop/mobile), theme customization
-
-### How to run the frontend right now
-```bash
-cd /sfs/yummara-v1/frontend
-python3 -m http.server 8080
-# open http://localhost:8080
-```
-
-### What is NOT built yet (Phase 1 TODO)
-- [ ] Backend: Node.js + Express server at `/backend/`
-- [ ] SQLite database with cooks + dishes seed data
-- [ ] `POST /api/orders` — save order from frontend
-- [ ] `GET /api/orders?cookId=X` — cook fetches their orders
-- [ ] `PUT /api/orders/:id/status` — cook updates status
-- [ ] Socket.io: `new_order` event to cook, `order_update` event to customer
-- [ ] Cook dashboard screen (new screen — not in prototype)
-- [ ] Frontend: wire "Place order" button to call API instead of static mock
-- [ ] Frontend: wire tracking screen to poll/subscribe to real order status
-
-### Errors encountered so far
-- **Error**: `ReferenceError: Cannot access 'SEED_COOKS' before initialization` in `src/db/index.js`
-  **Cause**: `const SEED_COOKS` was declared after the code that uses it (hoisting doesn't apply to `const`)
-  **Fix**: Move `SEED_COOKS` declaration to the top of the file, before the DB is opened
-  **File**: `backend/src/db/index.js`
-
-### Decisions made today
-- Stack: Node.js + Express + SQLite (better-sqlite3) + Socket.io v4
-- No auth in Phase 1 — cook logs in by phone number only (pre-seeded), customer just enters name
-- Keep CDN frontend for now; migrate to Vite only when it becomes painful
-- CORS: frontend on :8080, backend on :3001
-
----
+- UI prototype complete (React 18 CDN + Babel standalone)
+- All screens designed: home, cook profile, dish modal, cart, checkout, tracking
+- 6 home cooks seeded with full dish menus
+- **Error fixed**: `ReferenceError: SEED_COOKS` — moved declaration to top of db/index.js
 
 ---
 
 ## 2026-05-14 — Day 1 (Session 2)
-
-### Status: Phase 1 complete — full order flow working end-to-end
-
-### Done today
-- Added Socket.io CDN to `index.html`
-- Wired `placeOrder` in `app.jsx` to `POST /api/orders` (async), adds socket listener for `order_update`
-- Added customer name + phone fields to `CheckoutScreen` (Block "00 · Your details") with 10-digit validation
-- Replaced auto-advancing `setTimeout` stage in `TrackingScreen` with `statusToStage` map driven by real `order.status` from socket
-- Created `cook.html` — separate entry point for cook-side app
-- Created `yummara-cook-dashboard.jsx` — full cook app:
-  - Login screen (phone-only, no password, shows test account numbers as clickable shortcuts)
-  - Dashboard: stats row (pending / active / done today / earnings), order cards by section
-  - OrderCard: shows items, totals, action buttons (Accept → Start cooking → Mark ready)
-  - Real-time: Socket.io `join_cook` room, `new_order` event adds orders live
-  - Online/Offline toggle with API call
-  - Logout with socket disconnect
-
-### How to run everything
-```bash
-# Terminal 1 — backend
-cd /sfs/yummara-v1/backend && node server.js
-
-# Terminal 2 — frontend
-cd /sfs/yummara-v1/frontend && python3 -m http.server 8080
-
-# Customer app: http://localhost:8080
-# Cook app:     http://localhost:8080/cook.html
-```
-
-### Errors hit today
-- **Error**: `listen EADDRINUSE :::3001` when starting backend a second time
-  **Cause**: previous server process still running in background
-  **Fix**: `fuser -k 3001/tcp` to free the port before restarting
-  **Not a code bug** — just a dev workflow issue
-
-### Cook test accounts (Phase 1)
-| Phone      | Cook          |
-|------------|---------------|
-| 9900000001 | Padma         |
-| 9900000002 | Rukmini       |
-| 9900000004 | Lakshmi       |
-
-### What's NOT done (next phase)
-- Multi-cook cart support (currently only first cook's items are sent to API; Phase 1 scope)
-- Cook dashboard: pull-to-refresh / auto-refresh button
-- Customer: persist cart across page reload
-- Customer: show order ID on tracking screen as a link or confirmation
-
----
+### Status: Phase 1 complete — full order flow end-to-end
+- Socket.io wired, placeOrder calls POST /api/orders
+- CheckoutScreen: name + phone fields with validation
+- TrackingScreen: driven by real socket order_update events
+- cook.html + cook-dashboard.jsx: login, order cards, Accept/Cook/Ready flow, online toggle
+- **Error**: EADDRINUSE — fix: `fuser -k 3001/tcp` or `pkill -f "node server.js"`
 
 ---
 
 ## 2026-05-22 — Day 2
+### Status: Phase 2 complete — OTP auth, dish CRUD, customer profile
+- Added users, otps, saved_addresses tables (migration-safe)
+- JWT auth middleware (requireAuth / optionalAuth)
+- POST /api/auth/send-otp + verify-otp (MSG91 SMS or console fallback)
+- Cook dish CRUD: add/edit/delete/toggle availability
+- CustomerProfileScreen: order history, saved addresses, reorder
+- CookDashboard: OTP login via AuthModal, "My Menu" tab
 
-### Status: Phase 2 complete — OTP auth, cook dish CRUD, customer profile
+---
 
-### Done today
-- Added `users`, `otps`, `saved_addresses` tables to SQLite schema (migration-safe ALTER TABLE)
-- Created `backend/src/middleware/auth.js` — `requireAuth` / `optionalAuth` JWT middleware
-- Created `backend/src/routes/auth.js` — `POST /api/auth/send-otp` + `POST /api/auth/verify-otp`
-  - OTP: 6-digit, 10-min expiry, previous OTPs invalidated
-  - SMS via MSG91; console fallback when MSG91_AUTH_KEY not set (dev mode)
-  - `role=cook` validates phone is a registered cook before sending OTP
-  - Returns JWT (7-day, `{ sub, role, phone }`) + user/cook record
-- Created `backend/src/routes/users.js` — profile, order history, saved addresses CRUD
-- Created `backend/src/routes/dishes.js` — cook dish add/edit/delete/toggle availability
-- Updated `backend/server.js` — dotenv, new routes, CORS `allowedHeaders` for Authorization
-- Created `frontend/src/screens/auth.jsx` — `AuthModal` (phone → OTP → JWT), `window.YUM_AUTH`, `loadAuth`/`saveAuth`/`clearAuth`
-- Updated `frontend/src/screens/customer-home.jsx` — `CustomerNav` wired to NavCtx (real cart count, Sign In / profile avatar button)
-- Updated `frontend/src/screens/order-flow.jsx` — `CheckoutScreen` pre-fills name/phone from authUser
-- Updated `frontend/src/app.jsx` — `authUser` state, `openAuth`/`logout`, AuthModal overlay, profile screen route, passes token in `placeOrder`
-- Created `frontend/src/screens/customer-profile.jsx` — order history, saved addresses CRUD, reorder button, sign out
-- Updated `frontend/src/screens/cook-dashboard.jsx` — OTP login via `AuthModal`, "My Menu" tab with full dish CRUD (add/edit/delete/availability toggle), JWT token in API calls
-- Updated `index.html` + `cook.html` — added auth.jsx and customer-profile.jsx script tags
+## 2026-05-23 — Day 3
+### Status: Vite migration complete + SMS/WhatsApp OTP + search + chat
 
-### How to run everything
+### Vite migration
+- Migrated frontend from CDN Babel to **Vite + React** (massive perf improvement)
+- Removed tweaks panel (dev-only feature)
+- New entry points: `src/main.jsx` (customer), `src/cook-main.jsx` (cook)
+- All screens converted to ES modules with named exports
+- `src/lib/NavCtx.js` — NavCtx extracted as proper ES module
+- `src/lib/auth.js` — loadAuth/saveAuth/clearAuth
+- `src/data/cooks.js` — cook seed data with named exports
+- `useIsMobile()` hook replaces JS device toggle — reads real window.innerWidth
+- Vite proxy: all `/api` and `/socket.io` calls proxied to backend:3001
+  - **This means no CORS issues and only one port (5173) needs to be forwarded**
+- `vite.config.js`: host:true, allowedHosts:'all' for remote access
+
+### OTP / SMS
+- MSG91 integrated (auth key + template ID in .env)
+- WhatsApp Cloud API (Meta) support added — no DLT registration needed
+- `DEV_OTP=true` in .env returns OTP code in API response (shown on screen in modal)
+- OTP appears as "Dev mode OTP: XXXXXX" banner in the auth modal
+- Priority: WhatsApp → fallback to devCode if fails
+
+### Search
+- Search bar on home page (desktop + mobile) now live-filters cooks
+- Searches across: cook name, dish names, cuisine tags, area
+- Chip filters (All/Open now/Veg) stack with search
+- Clear (×) button resets query
+- "No results" empty state shown
+
+### Chat (two-way messaging)
+- New DB tables: `conversations`, `chat_messages`
+- Messages auto-pruned after 3 days
+- Customer: "Message cook" button on cook profile → slide-up chat panel
+  - Works logged-in or with guest name+phone
+  - Real-time cook replies appear via Socket.io
+- Cook: new "Messages" tab in dashboard
+  - Conversation list with unread badges
+  - Click to open thread, reply inline
+  - Messages marked read when opened
+- Socket events: `new_message` → cook room + `conv_{id}` room
+
+### Bug fixes
+- **CORS**: updated to allow both :8080 and :5173
+- **Vite blocked requests**: added `allowedHosts: 'all'`
+- **Input focus lost on keystroke**: DishForm was defined inside DishManagerTab
+  (React recreated it as new component on every render → unmount/remount → focus lost)
+  Fixed by moving DishForm to module level with props
+- **Port 3001 EADDRINUSE**: use `pkill -f "node server.js"` to reliably kill
+- **Disk full**: /home/jovyan was 100% full — cleared 18GB of pip cache:
+  `rm -rf /home/jovyan/.cache/pip`
+- **Cook login from customer page**: added "Cook login" link in nav (desktop + mobile)
+- **Mobile hero missing**: added hero section to CustomerHomeMobile
+- **GitHub token**: pushed to github.com/ashutoshauric-svg/yummara — token since revoked
+
+### How to run
 ```bash
 # Terminal 1 — backend
 cd /sfs/yummara-v1/backend
 export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh"
-node server.js
+pkill -f "node server.js" 2>/dev/null; sleep 1; node server.js
 
 # Terminal 2 — frontend
-cd /sfs/yummara-v1/frontend && python3 -m http.server 8080
-
-# Customer app: http://localhost:8080
-# Cook app:     http://localhost:8080/cook.html
+cd /sfs/yummara-v1/frontend
+export NVM_DIR="$HOME/.nvm" && source "$NVM_DIR/nvm.sh"
+npm run dev
 ```
 
-### How to test OTP in dev mode
-OTP is printed to the **server console** when MSG91_AUTH_KEY is empty.
-Look for: `[OTP] Phone: 9900000001  Code: 123456`
+- Customer: http://localhost:5173
+- Cook:     http://localhost:5173/cook.html
+- Mobile sim: Chrome DevTools → Cmd+Shift+M
 
-### Errors hit today
-- None new. Ensured no duplicate SEED_COOKS blocks remain in db/index.js.
+### OTP in dev mode
+With `DEV_OTP=true` in .env, the OTP code appears directly in the sign-in modal.
+No need to check the terminal.
 
-### Cook test accounts (Phase 2)
-All 6 cooks can log in via OTP. Use phone numbers from the seeded cooks table.
-| Phone      | Cook          |
-|------------|---------------|
-| 9900000001 | Padma         |
-| 9900000002 | Rukmini       |
-| 9900000003 | Aarti         |
-| 9900000004 | Lakshmi       |
-| 9900000005 | Bhumi         |
-| 9900000006 | Krishnan      |
+### Cook test accounts
+| Phone      | Cook      | Area            |
+|------------|-----------|-----------------|
+| 9900000001 | Padma     | Indiranagar     |
+| 9900000002 | Rukmini   | Koramangala     |
+| 9900000003 | Aarti     | HSR Sector 2    |
+| 9900000004 | Lakshmi   | HSR Sector 6    |
+| 9900000005 | Bhumi     | Koramangala 5th |
+| 9900000006 | Krishnan  | Whitefield      |
 
-### What's NOT done (next phase)
-- Delivery partner app + live map tracking
-- Real payment processing (Razorpay)
-- Push notifications (order alerts to cook without open browser tab)
-- Multi-cook cart: currently only first cook's items go to API
-- Cook profile editing (bio, schedule, languages, photo)
-
----
-
-## Template for future entries
-
-### YYYY-MM-DD — Day N
-
-**Phase**: X  
-**Session goal**: what we tried to build today
-
-**Done**:
-- 
-
-**Errors hit**:
-- Error: [description] | Fix: [what fixed it] | File: [where]
-
-**Blocked on**:
-- 
-
-**Next session start from**:
-- 
+### What's NOT done (next phases)
+- [ ] Delivery partner app + live map tracking
+- [ ] Real payments (Razorpay / UPI)
+- [ ] Push notifications (order alerts when browser is closed)
+- [ ] Cook profile editing (bio, photo, schedule)
+- [ ] Multi-cook cart (currently only first cook's items sent to API)
+- [ ] WhatsApp OTP template approval (currently using DEV_OTP mode)
+- [ ] Real-time chat: customer side doesn't yet auto-receive cook replies via socket
+      (needs socket join on conv_{id} room from customer chat panel)
