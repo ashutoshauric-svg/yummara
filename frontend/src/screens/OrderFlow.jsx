@@ -113,8 +113,8 @@ export function CookProfile({ cookId, isMobile }) {
                 name={d.name} cook={`${cook.short} · ${cook.area}`} price={d.price}
                 subtitle={d.subtitle} tone={d.tone} veg={d.veg} tag={d.tag} qtyState={qty}
                 imageUrl={d.photo_url || null}
-                onClick={() => openDish(d.id, cook.id)}
-                onAdd={() => addToCart(d.id, cook.id)}
+                onClick={() => openDish(d, cook)}
+                onAdd={() => addToCart(d.id, cook.id, d.price, d.name, cook.short)}
                 onInc={() => incCart(d.id)}
                 onDec={() => decCart(d.id)}
               />
@@ -137,9 +137,7 @@ function Stat({ label, value }) {
 }
 
 // ─── Dish modal ───────────────────────────────────────────────────
-export function DishModal({ dishId, cookId, onClose, isMobile }) {
-  const cook = YUM_INDEX.byId[cookId];
-  const dish = cook?.dishes.find(d => d.id === dishId);
+export function DishModal({ dish, cook, onClose, isMobile }) {
   const { addToCart, incCart, decCart, getQty } = useNav();
   const [spice, setSpice] = React.useState('medium');
   if (!cook || !dish) return null;
@@ -149,7 +147,10 @@ export function DishModal({ dishId, cookId, onClose, isMobile }) {
     <div style={{ position: 'fixed', inset: 0, zIndex: 20, background: 'rgba(20,16,10,0.55)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', padding: isMobile ? 0 : 24 }} onClick={onClose}>
       <div className="yum" onClick={e => e.stopPropagation()} style={{ background: 'var(--yum-cream)', width: '100%', maxWidth: isMobile ? 'none' : 520, maxHeight: isMobile ? '88vh' : '86vh', borderRadius: isMobile ? '20px 20px 0 0' : 'var(--r-xl)', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-lg)' }}>
         <div style={{ position: 'relative', aspectRatio: '5/3', flexShrink: 0 }}>
-          <YImg tone={dish.tone} label={dish.name} style={{ position: 'absolute', inset: 0 }}/>
+          {dish.photo_url
+            ? <img src={dish.photo_url} alt={dish.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}/>
+            : <YImg tone={dish.tone} label={dish.name} style={{ position: 'absolute', inset: 0 }}/>
+          }
           <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, width: 36, height: 36, borderRadius: 999, background: 'rgba(251,247,240,0.96)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {Ic.x({ s: 14 })}
           </button>
@@ -177,7 +178,7 @@ export function DishModal({ dishId, cookId, onClose, isMobile }) {
               <YButton variant="primary" size="lg" onClick={onClose}>Done</YButton>
             </div>
           ) : (
-            <YButton variant="primary" size="lg" icon={Ic.plus({ s: 14 })} onClick={() => addToCart(dish.id, cook.id)}>Add to cart</YButton>
+            <YButton variant="primary" size="lg" icon={Ic.plus({ s: 14 })} onClick={() => addToCart(dish.id, cook.id, dish.price, dish.name, cook.short)}>Add to cart</YButton>
           )}
         </div>
       </div>
@@ -197,9 +198,7 @@ function Row({ label, value, sub }) {
 export function CartSheet({ onClose, onCheckout, isMobile }) {
   const { cart, incCart, decCart, cartTotal, cartCount } = useNav();
   const groups = Object.values(cart.reduce((acc, item) => {
-    const cook = YUM_INDEX.byId[item.cookId];
-    if (!cook) return acc;
-    (acc[cook.id] ||= { cook, items: [] }).items.push(item);
+    (acc[item.cookId] ||= { cookId: item.cookId, cookShort: item.cookShort, items: [] }).items.push(item);
     return acc;
   }, {}));
   const deliveryFee = cartCount ? 29 : 0;
@@ -219,25 +218,21 @@ export function CartSheet({ onClose, onCheckout, isMobile }) {
         </div>
         <div className="yum-scroll" style={{ flex: 1, overflowY: 'auto', padding: '16px 22px' }}>
           {groups.length === 0 && <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--yum-ink-3)', fontSize: 14 }}>Nothing in your cart yet.</div>}
-          {groups.map(({ cook, items }) => (
-            <div key={cook.id} style={{ marginBottom: 20 }}>
-              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>{cook.short}'s kitchen</div>
+          {groups.map(({ cookId, cookShort, items }) => (
+            <div key={cookId} style={{ marginBottom: 20 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>{cookShort}'s kitchen</div>
               <div style={{ background: 'var(--yum-paper)', border: '1px solid var(--yum-border-soft)', borderRadius: 'var(--r-lg)', overflow: 'hidden' }}>
-                {items.map((item, i) => {
-                  const dish = cook.dishes.find(d => d.id === item.dishId);
-                  if (!dish) return null;
-                  return (
-                    <div key={item.dishId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, borderTop: i ? '1px solid var(--yum-border-soft)' : 'none' }}>
-                      <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{dish.name}</div>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', height: 30, border: '1px solid var(--yum-primary)', borderRadius: 999 }}>
-                        <button onClick={() => decCart(item.dishId)} style={{ width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--yum-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{Ic.minus({ s: 11 })}</button>
-                        <span className="num" style={{ minWidth: 20, textAlign: 'center', fontWeight: 600, fontSize: 13 }}>{item.qty}</span>
-                        <button onClick={() => incCart(item.dishId)} style={{ width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--yum-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{Ic.plus({ s: 11 })}</button>
-                      </div>
-                      <div className="num" style={{ minWidth: 56, textAlign: 'right', fontWeight: 600, fontSize: 14 }}>₹{dish.price * item.qty}</div>
+                {items.map((item, i) => (
+                  <div key={item.dishId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 14, borderTop: i ? '1px solid var(--yum-border-soft)' : 'none' }}>
+                    <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{item.name}</div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', height: 30, border: '1px solid var(--yum-primary)', borderRadius: 999 }}>
+                      <button onClick={() => decCart(item.dishId)} style={{ width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--yum-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{Ic.minus({ s: 11 })}</button>
+                      <span className="num" style={{ minWidth: 20, textAlign: 'center', fontWeight: 600, fontSize: 13 }}>{item.qty}</span>
+                      <button onClick={() => incCart(item.dishId)} style={{ width: 30, height: 30, border: 'none', background: 'transparent', color: 'var(--yum-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{Ic.plus({ s: 11 })}</button>
                     </div>
-                  );
-                })}
+                    <div className="num" style={{ minWidth: 56, textAlign: 'right', fontWeight: 600, fontSize: 14 }}>₹{item.price * item.qty}</div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}

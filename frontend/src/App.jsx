@@ -41,16 +41,12 @@ export function App() {
   // Cart
   const [cart, setCart] = React.useState([]);
   const cartCount = cart.reduce((n, it) => n + it.qty, 0);
-  const cartTotal = cart.reduce((n, it) => {
-    const cook = YUM_INDEX.byId[it.cookId];
-    const d = cook?.dishes.find(x => x.id === it.dishId);
-    return n + (d ? d.price * it.qty : 0);
-  }, 0);
+  const cartTotal = cart.reduce((n, it) => n + (it.price || 0) * it.qty, 0);
 
-  const addToCart  = (dishId, cookId) => setCart(prev => {
+  const addToCart  = (dishId, cookId, price, name, cookShort) => setCart(prev => {
     const i = prev.findIndex(x => x.dishId === dishId);
     if (i >= 0) return prev.map((x, idx) => idx === i ? { ...x, qty: x.qty + 1 } : x);
-    return [...prev, { dishId, cookId, qty: 1 }];
+    return [...prev, { dishId, cookId, qty: 1, price: price || 0, name: name || '', cookShort: cookShort || '' }];
   });
   const incCart    = (dishId) => setCart(prev => prev.map(x => x.dishId === dishId ? { ...x, qty: x.qty + 1 } : x));
   const decCart    = (dishId) => setCart(prev => prev.flatMap(x => x.dishId === dishId ? (x.qty > 1 ? [{ ...x, qty: x.qty - 1 }] : []) : [x]));
@@ -60,7 +56,7 @@ export function App() {
   // Modal / sheet state
   const [dishModal, setDishModal] = React.useState(null);
   const [cartOpen, setCartOpen]   = React.useState(false);
-  const openDish = (dishId, cookId) => setDishModal({ dishId, cookId });
+  const openDish = (dish, cook) => setDishModal({ dish, cook });
   const openCart = () => setCartOpen(true);
 
   const socketRef    = React.useRef(null);
@@ -68,8 +64,7 @@ export function App() {
 
   const placeOrder = async ({ total, customerName, customerPhone, tip, address }) => {
     const groups = Object.values(cart.reduce((m, it) => {
-      const cook = YUM_INDEX.byId[it.cookId];
-      (m[it.cookId] ||= { cook, items: [] }).items.push(it);
+      (m[it.cookId] ||= { cookId: it.cookId, cookShort: it.cookShort, items: [] }).items.push(it);
       return m;
     }, {}));
     const firstGroup = groups[0];
@@ -84,7 +79,7 @@ export function App() {
         body: JSON.stringify({
           customerName,
           customerPhone: String(customerPhone),
-          cookId: firstGroup.cook.id,
+          cookId: firstGroup.cookId,
           items: firstGroup.items.map(it => ({ dishId: it.dishId, qty: it.qty })),
           tip: tip || 0,
           address: address || '',
@@ -121,7 +116,7 @@ export function App() {
       const cookGuess = cookField.split('·')[0].trim();
       const dish = yumFindDish(dishName);
       const cook = yumFindCookByName(cookGuess);
-      if (dish) { e.stopPropagation(); openDish(dish.id, dish.cookId); return; }
+      if (dish) { e.stopPropagation(); openDish(dish, cook); return; }
       if (cook) { e.stopPropagation(); go({ name: 'cook', cookId: cook.id }); return; }
     } else if (ce) {
       const cook = yumFindCookByName(ce.getAttribute('data-yum-cook-name'));
@@ -166,7 +161,7 @@ export function App() {
         )}
 
         {/* Overlays */}
-        {dishModal && <DishModal dishId={dishModal.dishId} cookId={dishModal.cookId} isMobile={isMobile} onClose={() => setDishModal(null)}/>}
+        {dishModal && <DishModal dish={dishModal.dish} cook={dishModal.cook} isMobile={isMobile} onClose={() => setDishModal(null)}/>}
         {cartOpen   && <CartSheet onClose={() => setCartOpen(false)} onCheckout={() => { setCartOpen(false); go({ name: 'checkout' }); }} isMobile={isMobile}/>}
         {showAuth   && <AuthModal role={authRole} onSuccess={handleAuthSuccess} onClose={() => setShowAuth(false)}/>}
       </div>
