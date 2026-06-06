@@ -58,6 +58,37 @@ async function sendOtp(phone, code) {
   return { devCode: code };
 }
 
+// POST /api/auth/cook-register — new cook signs up
+router.post('/cook-register', async (req, res) => {
+  const { phone, name, area, address, tags, bio, languages, schedule, min_order } = req.body;
+  if (!phone || !/^\d{10}$/.test(String(phone))) return res.status(400).json({ error: 'Valid 10-digit phone required' });
+  if (!name?.trim()) return res.status(400).json({ error: 'Name required' });
+  if (!area?.trim()) return res.status(400).json({ error: 'Area required' });
+
+  const existing = db.prepare('SELECT id FROM cooks WHERE phone = ?').get(String(phone));
+  if (existing) return res.status(409).json({ error: 'A cook account already exists for this number. Please sign in.' });
+
+  // Store pending registration (upsert so re-submits work)
+  db.prepare(`
+    INSERT INTO pending_cook_registrations (phone, name, area, address, tags, bio, languages, schedule, min_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(phone) DO UPDATE SET
+      name=excluded.name, area=excluded.area, address=excluded.address,
+      tags=excluded.tags, bio=excluded.bio, languages=excluded.languages,
+      schedule=excluded.schedule, min_order=excluded.min_order
+  `).run(String(phone), name.trim(), area.trim(), address||null, tags||null, bio||null, languages||null, schedule||null, min_order||0);
+
+  // Invalidate old OTPs and send new one
+  db.prepare("UPDATE otps SET used = 1 WHERE phone = ? AND used = 0").run(String(phone));
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  db.prepare("INSERT INTO otps (phone, code, expires_at) VALUES (?, ?, ?)").run(String(phone), code, expiresAt);
+
+  const { devCode } = await sendOtp(String(phone), code);
+  const expose = devCode || process.env.DEV_OTP === 'true';
+  res.json({ ok: true, dev: expose, ...(expose ? { devCode: code } : {}) });
+});
+
 // POST /api/auth/send-otp
 // Works for both customers (role=customer) and cooks (role=cook)
 router.post('/send-otp', async (req, res) => {
@@ -95,6 +126,30 @@ router.post('/verify-otp', (req, res) => {
   if (!otp) return res.status(400).json({ error: 'Invalid or expired OTP' });
 
   db.prepare('UPDATE otps SET used = 1 WHERE id = ?').run(otp.id);
+
+  if (role === 'cook-register') {
+    const pending = db.prepare('SELECT * FROM pending_cook_registrations WHERE phone = ?').get(String(phone));
+    if (!pending) return res.status(400).json({ error: 'No pending registration found. Please fill the form again.' });
+
+    // Generate unique cook ID from name
+    const baseId = pending.name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16);
+    let cookId = baseId;
+    let suffix = 2;
+    while (db.prepare('SELECT id FROM cooks WHERE id = ?').get(cookId)) {
+      cookId = `${baseId}${suffix++}`;
+    }
+
+    db.prepare(`
+      INSERT INTO cooks (id, name, short, phone, area, address, tags, bio, languages, schedule, min_order, rating, review_count, online, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 'active')
+    `).run(cookId, pending.name, pending.name.split(' ')[0], String(phone), pending.area, pending.address, pending.tags, pending.bio, pending.languages, pending.schedule, pending.min_order);
+
+    db.prepare('DELETE FROM pending_cook_registrations WHERE phone = ?').run(String(phone));
+
+    const cook = db.prepare('SELECT * FROM cooks WHERE id = ?').get(cookId);
+    const token = jwt.sign({ sub: cook.id, role: 'cook', phone: cook.phone }, SECRET, { expiresIn: '7d' });
+    return res.json({ token, cook, role: 'cook' });
+  }
 
   if (role === 'cook') {
     const cook = db.prepare('SELECT * FROM cooks WHERE phone = ?').get(String(phone));

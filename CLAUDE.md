@@ -41,8 +41,8 @@ npm run dev
 | 1 | Order flow: place → cook receives → cook accepts | ✅ Done |
 | 2 | Phone OTP auth, JWT, cook dish CRUD, customer profile | ✅ Done |
 | 2.5 | Vite migration, search, WhatsApp OTP, two-way chat | ✅ Done |
-| 3 | Delivery partner app, live tracking | ⬜ Pending |
-| 4 | Payments: Razorpay / UPI | ⬜ Pending |
+| 3 | Cook registration, cook profile, Borzo delivery dispatch | ✅ Done |
+| 4 | Real OTP (Fast2SMS/WhatsApp), Payments (Razorpay/UPI) | ⬜ Pending |
 
 ---
 
@@ -118,7 +118,7 @@ yummara-v1/
 
 | Table | Purpose |
 |-------|---------|
-| cooks | Seeded cook profiles |
+| cooks | Cook profiles (seeded + self-registered). Has `address` (Borzo pickup) and `status` columns |
 | dishes | Cook menus (editable by cooks) |
 | orders | Customer orders |
 | order_items | Line items per order |
@@ -127,6 +127,8 @@ yummara-v1/
 | saved_addresses | Customer delivery addresses |
 | conversations | Chat threads (cook_id + user_phone, unique) |
 | chat_messages | Individual messages, pruned after 3 days |
+| pending_cook_registrations | Temp storage for cook signup data while OTP is pending. Deleted on verify. |
+| deliveries | Borzo delivery per order: borzo_order_id, status, rider_name, rider_phone, price |
 
 ---
 
@@ -134,8 +136,9 @@ yummara-v1/
 
 ```
 # Auth
-POST   /api/auth/send-otp              body: { phone, role }
-POST   /api/auth/verify-otp            body: { phone, code, role }
+POST   /api/auth/send-otp              body: { phone, role }         role=customer|cook
+POST   /api/auth/verify-otp            body: { phone, code, role }   role=customer|cook|cook-register
+POST   /api/auth/cook-register         body: { phone, name, area, address, tags, bio, ... }
 
 # Cooks
 GET    /api/cooks
@@ -154,6 +157,12 @@ GET    /api/user/orders
 GET/POST /api/user/addresses
 PUT/DELETE /api/user/addresses/:id
 
+# Cooks
+GET    /api/cooks
+GET    /api/cooks/:id
+PUT    /api/cooks/profile              JWT cook — edit bio, area, address, tags, schedule, min_order
+PUT    /api/cooks/:id/online           JWT cook
+
 # Dishes
 POST   /api/dishes                     JWT cook
 PUT    /api/dishes/:id                 JWT cook (own dish)
@@ -166,6 +175,12 @@ GET    /api/chat/conversations         JWT cook — inbox
 GET    /api/chat/conversations/:id     JWT cook — thread + marks read
 POST   /api/chat/conversations/:id/reply  JWT cook — reply
 GET    /api/chat/customer/:cookId?user_phone=X  customer fetches their thread
+
+# Delivery (Borzo)
+POST   /api/delivery/dispatch/:orderId JWT cook — creates Borzo order (order must be 'ready')
+GET    /api/delivery/:orderId          get delivery status + rider info for an order
+POST   /api/delivery/webhook           Borzo calls this on status changes (register URL in Borzo dashboard)
+POST   /api/delivery/estimate          JWT — price estimate { cook_address, customer_address }
 ```
 
 ## Socket.io Events
@@ -199,7 +214,11 @@ WHATSAPP_TEMPLATE_NAME=yummara_otp
 MSG91_AUTH_KEY=                # Fallback SMS (DLT registration needed for delivery)
 MSG91_SENDER_ID=YUMMARA
 MSG91_TEMPLATE_ID=
-DEV_OTP=true                   # Remove in production
+DEV_OTP=true                   # Remove in production — shows OTP on screen
+BORZO_TOKEN=                   # From Borzo Personal Cabinet (test or prod)
+BORZO_TEST=true                # true = sandbox API, false = live API
+CORS_ORIGINS=                  # Comma-separated: https://yummara-iota.vercel.app,http://localhost:5173
+DB_PATH=                       # Railway: /data/yummara.db  |  local: unset (uses backend/yummara.db)
 ```
 
 ---
@@ -216,6 +235,26 @@ DEV_OTP=true                   # Remove in production
 | krishnan | Krishnan Pillai | 9900000006 | Whitefield |
 
 ---
+
+## Cook Registration Flow
+1. Cook visits cook.html → clicks "Register as a new cook"
+2. Fills form: name, phone, area, address, cuisine tags, bio
+3. `POST /api/auth/cook-register` → stores in `pending_cook_registrations`, sends OTP
+4. Enters OTP → `POST /api/auth/verify-otp` with `role=cook-register`
+5. Cook account created with auto-generated ID (slugified from name), status='active'
+6. JWT returned → logged into dashboard
+
+Cook ID is slugified from name: "Priya Sharma" → "priyasharma". Suffix added if collision.
+
+## Borzo Delivery Flow
+1. Cook accepts order → cooks → marks "Ready"
+2. "Dispatch Rider" button appears in OrderCard
+3. Cook must have `address` set in Profile tab (shown as warning if missing)
+4. Order must have customer `address` (set at checkout)
+5. `POST /api/delivery/dispatch/:orderId` → Borzo creates order → stores in `deliveries`
+6. Borzo webhook `POST /api/delivery/webhook` receives status updates → updates rider info
+7. Customer tracking screen can poll `GET /api/delivery/:orderId` for rider name/phone
+8. Register webhook URL in Borzo dashboard: `https://yummara-production.up.railway.app/api/delivery/webhook`
 
 ## Known Gotchas / Things to Avoid
 

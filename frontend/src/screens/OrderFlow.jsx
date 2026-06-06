@@ -4,6 +4,7 @@ import { DishCard } from '../components/cards';
 import { NavCtx, useNav } from '../lib/NavCtx';
 import { YUM_INDEX } from '../data/cooks';
 import { CustomerChatPanel } from './Chat';
+import { API_URL } from '../lib/config';
 
 // ─── Shared header ────────────────────────────────────────────────
 function ScreenHeader({ title, subtitle, right, isMobile }) {
@@ -38,13 +39,28 @@ function CartButton() {
 
 // ─── Cook profile ─────────────────────────────────────────────────
 export function CookProfile({ cookId, isMobile }) {
-  const cook = YUM_INDEX.byId[cookId];
+  const staticCook = YUM_INDEX.byId[cookId];
+  const [cook, setCook] = React.useState(staticCook || null);
+  const [loadingCook, setLoadingCook] = React.useState(!staticCook);
   const { openDish, getQty, addToCart, incCart, decCart } = useNav();
   const [filter, setFilter] = React.useState('all');
   const [chatOpen, setChatOpen] = React.useState(false);
+
+  // Fetch from API if not in static data (registered cooks)
+  React.useEffect(() => {
+    if (!staticCook) {
+      fetch(`${API_URL}/api/cooks/${cookId}`)
+        .then(r => r.json())
+        .then(data => setCook(data.id ? data : null))
+        .catch(() => {})
+        .finally(() => setLoadingCook(false));
+    }
+  }, [cookId, staticCook]);
+
+  if (loadingCook) return <div style={{ padding: 40, color: 'var(--yum-ink-3)' }}>Loading…</div>;
   if (!cook) return <div style={{ padding: 40 }}>Cook not found.</div>;
 
-  const filtered = cook.dishes.filter(d => filter === 'veg' ? d.veg : filter === 'nonveg' ? !d.veg : true);
+  const filtered = (cook.dishes || []).filter(d => filter === 'veg' ? d.veg : filter === 'nonveg' ? !d.veg : true);
 
   return (
     <div className="yum yum-scroll" style={{ width: '100%', height: '100%', overflowY: 'auto', background: 'var(--yum-cream)' }}>
@@ -96,6 +112,7 @@ export function CookProfile({ cookId, isMobile }) {
                 key={d.id}
                 name={d.name} cook={`${cook.short} · ${cook.area}`} price={d.price}
                 subtitle={d.subtitle} tone={d.tone} veg={d.veg} tag={d.tag} qtyState={qty}
+                imageUrl={d.photo_url || null}
                 onClick={() => openDish(d.id, cook.id)}
                 onAdd={() => addToCart(d.id, cook.id)}
                 onInc={() => incCart(d.id)}

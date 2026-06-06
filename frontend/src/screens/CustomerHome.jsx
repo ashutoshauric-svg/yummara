@@ -2,7 +2,20 @@ import React from 'react';
 import { Ic, YChip, YImg, YBadge, Veg, NonVeg } from '../components/ui';
 import { CookCard, DishCard } from '../components/cards';
 import { NavCtx } from '../lib/NavCtx';
-import { YUM_COOKS } from '../data/cooks';
+import { API_URL } from '../lib/config';
+
+function useLiveCooks() {
+  const [cooks, setCooks] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  React.useEffect(() => {
+    fetch(`${API_URL}/api/cooks`)
+      .then(r => r.json())
+      .then(data => setCooks(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+  return { cooks, loading };
+}
 
 function YumLogo({ tone = 'ink', size = 22 }) {
   const color = tone === 'cream' ? 'var(--yum-cream)' : 'var(--yum-ink)';
@@ -57,15 +70,29 @@ function CustomerNav({ area = 'HSR Layout' }) {
   );
 }
 
+function applySearch(cooks, query) {
+  if (!query.trim()) return cooks;
+  const q = query.toLowerCase().trim();
+  return cooks.filter(c =>
+    c.name.toLowerCase().includes(q) ||
+    (c.tags || '').toLowerCase().includes(q) ||
+    (c.area || '').toLowerCase().includes(q) ||
+    (c.dishes || []).some(d => d.name.toLowerCase().includes(q))
+  );
+}
+
 export function CustomerHomeDesktop() {
   const { go } = React.useContext(NavCtx);
   const [filter, setFilter] = React.useState('all');
+  const [query, setQuery] = React.useState('');
+  const { cooks: liveCooks, loading } = useLiveCooks();
 
-  const filtered = filter === 'veg'
-    ? YUM_COOKS.filter(c => c.dishes.every(d => d.veg))
-    : filter === 'online'
-    ? YUM_COOKS.filter(c => c.online)
-    : YUM_COOKS;
+  const filtered = applySearch(
+    filter === 'veg'    ? liveCooks.filter(c => (c.dishes || []).every(d => d.veg))
+    : filter === 'online' ? liveCooks.filter(c => c.online)
+    : liveCooks,
+    query
+  );
 
   return (
     <div className="yum yum-scroll" style={{ width: '100%', height: '100%', overflowY: 'auto', background: 'var(--yum-cream)' }}>
@@ -85,7 +112,8 @@ export function CustomerHomeDesktop() {
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 52, background: 'var(--yum-paper)', border: '1px solid var(--yum-border)', borderRadius: 'var(--r-pill)', padding: '0 20px', maxWidth: 520, boxShadow: 'var(--shadow-sm)' }}>
             <span style={{ color: 'var(--yum-ink-3)' }}>{Ic.search({ s: 18 })}</span>
-            <input placeholder="Search cooks, dishes, cuisines…" style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 15, color: 'var(--yum-ink)' }}/>
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search cooks, dishes, cuisines…" style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 15, color: 'var(--yum-ink)' }}/>
+            {query && <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--yum-ink-3)', display: 'flex', alignItems: 'center' }}>{Ic.x({ s: 14 })}</button>}
           </div>
         </div>
         <div style={{ width: 320, flexShrink: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 8, height: 220 }}>
@@ -110,13 +138,22 @@ export function CustomerHomeDesktop() {
       <div style={{ padding: '32px 56px 56px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 500, margin: 0, letterSpacing: '-0.01em' }}>Cooks near you</h2>
-          <span className="num" style={{ fontSize: 13, color: 'var(--yum-ink-3)' }}>{filtered.length} available</span>
+          <span className="num" style={{ fontSize: 13, color: 'var(--yum-ink-3)' }}>{loading ? '…' : `${filtered.length} available`}</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
-          {filtered.map(cook => (
-            <CookCard key={cook.id} {...cook} onClick={() => go({ name: 'cook', cookId: cook.id })}/>
-          ))}
-        </div>
+        {loading ? (
+          <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--yum-ink-3)', fontSize: 14 }}>Loading cooks…</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--yum-ink-3)' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--yum-ink-2)', marginBottom: 8 }}>{query ? `No results for "${query}"` : 'No cooks yet'}</div>
+            <div style={{ fontSize: 14 }}>{query ? 'Try a dish name, cuisine, or cook name.' : 'Check back soon!'}</div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+            {filtered.map(cook => (
+              <CookCard key={cook.id} {...cook} onClick={() => go({ name: 'cook', cookId: cook.id })}/>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -125,12 +162,15 @@ export function CustomerHomeDesktop() {
 export function CustomerHomeMobile() {
   const { go, cartCount, cartTotal, openCart } = React.useContext(NavCtx);
   const [filter, setFilter] = React.useState('all');
+  const [query, setQuery] = React.useState('');
+  const { cooks: liveCooks, loading } = useLiveCooks();
 
-  const filtered = filter === 'veg'
-    ? YUM_COOKS.filter(c => c.dishes.every(d => d.veg))
-    : filter === 'online'
-    ? YUM_COOKS.filter(c => c.online)
-    : YUM_COOKS;
+  const filtered = applySearch(
+    filter === 'veg'    ? liveCooks.filter(c => (c.dishes || []).every(d => d.veg))
+    : filter === 'online' ? liveCooks.filter(c => c.online)
+    : liveCooks,
+    query
+  );
 
   return (
     <div className="yum yum-scroll" style={{ width: '100%', height: '100%', overflowY: 'auto', background: 'var(--yum-cream)' }}>
@@ -167,7 +207,8 @@ export function CustomerHomeMobile() {
       <div style={{ padding: '16px 18px 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 44, background: 'var(--yum-paper)', border: '1px solid var(--yum-border)', borderRadius: 'var(--r-pill)', padding: '0 16px', marginBottom: 14 }}>
           {Ic.search({ s: 16 })}
-          <input placeholder="Search…" style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 14, color: 'var(--yum-ink)' }}/>
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search dishes, cooks, cuisines…" style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 14, color: 'var(--yum-ink)' }}/>
+          {query && <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--yum-ink-3)', display: 'flex', alignItems: 'center' }}>{Ic.x({ s: 14 })}</button>}
         </div>
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
           <YChip size="sm" active={filter === 'all'} onClick={() => setFilter('all')}>All</YChip>
@@ -180,6 +221,15 @@ export function CustomerHomeMobile() {
 
 
       <div style={{ padding: '0 18px 32px' }}>
+        {loading && (
+          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--yum-ink-3)', fontSize: 13 }}>Loading cooks…</div>
+        )}
+        {!loading && filtered.length === 0 && (
+          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--yum-ink-3)' }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, color: 'var(--yum-ink-2)', marginBottom: 6 }}>{query ? `No results for "${query}"` : 'No cooks yet'}</div>
+            <div style={{ fontSize: 13 }}>{query ? 'Try a dish name, cuisine, or cook name.' : 'Check back soon!'}</div>
+          </div>
+        )}
         {filtered.map(cook => (
           <div key={cook.id} onClick={() => go({ name: 'cook', cookId: cook.id })} style={{ background: 'var(--yum-paper)', border: '1px solid var(--yum-border-soft)', borderRadius: 'var(--r-lg)', marginBottom: 12, overflow: 'hidden', cursor: 'pointer' }}>
             <div style={{ position: 'relative', height: 140 }}>

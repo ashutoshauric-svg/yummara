@@ -45,7 +45,7 @@ export function CookCard({ name, area, tags, rating, count, prepTime, online = t
   );
 }
 
-export function DishCard({ name, cook, price, veg = true, tag, tone = 'warm', subtitle, qtyState = 0, onClick, onAdd, onInc, onDec }) {
+export function DishCard({ name, cook, price, veg = true, tag, tone = 'warm', subtitle, qtyState = 0, imageUrl, onClick, onAdd, onInc, onDec }) {
   return (
     <div onClick={onClick} data-yum-dish-name={name} data-yum-dish-cook={cook} style={{
       background: 'var(--yum-paper)', borderRadius: 'var(--r-lg)',
@@ -54,7 +54,10 @@ export function DishCard({ name, cook, price, veg = true, tag, tone = 'warm', su
       cursor: onClick ? 'pointer' : 'default',
     }}>
       <div style={{ position: 'relative', aspectRatio: '3 / 2' }}>
-        <YImg tone={tone} style={{ position: 'absolute', inset: 0 }}/>
+        {imageUrl
+          ? <img src={imageUrl} alt={name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}/>
+          : <YImg tone={tone} style={{ position: 'absolute', inset: 0 }}/>
+        }
         {tag && (
           <div style={{ position: 'absolute', top: 10, left: 10 }}>
             <YBadge tone={tag === 'new' ? 'new' : 'reorder'}>

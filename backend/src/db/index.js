@@ -204,10 +204,41 @@ db.exec(`
   );
 `);
 
-// Migrate: add user_id to orders if it doesn't exist yet
+// Deliveries table (Borzo)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS deliveries (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id       INTEGER NOT NULL UNIQUE REFERENCES orders(id),
+    borzo_order_id TEXT,
+    status         TEXT NOT NULL DEFAULT 'pending',
+    rider_name     TEXT,
+    rider_phone    TEXT,
+    tracking_url   TEXT,
+    price          INTEGER,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS pending_cook_registrations (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone       TEXT UNIQUE NOT NULL,
+    name        TEXT NOT NULL,
+    area        TEXT NOT NULL,
+    address     TEXT,
+    tags        TEXT,
+    bio         TEXT,
+    languages   TEXT,
+    schedule    TEXT,
+    min_order   INTEGER DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+// Migrations
 try { db.exec('ALTER TABLE orders ADD COLUMN user_id INTEGER REFERENCES users(id)'); } catch (_) {}
-// Migrate: add photo_url to dishes if it doesn't exist yet
 try { db.exec('ALTER TABLE dishes ADD COLUMN photo_url TEXT'); } catch (_) {}
+try { db.exec("ALTER TABLE cooks ADD COLUMN address TEXT"); } catch (_) {}
+try { db.exec("ALTER TABLE cooks ADD COLUMN status TEXT NOT NULL DEFAULT 'active'"); } catch (_) {}
 
 // Seed cooks and dishes if empty
 const cookCount = db.prepare('SELECT COUNT(*) as n FROM cooks').get().n;

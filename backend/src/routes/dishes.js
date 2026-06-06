@@ -10,13 +10,13 @@ function cookOnly(req, res, next) {
 
 // POST /api/dishes — cook adds a new dish
 router.post('/', requireAuth, cookOnly, (req, res) => {
-  const { name, subtitle, price, tone = 'warm', veg = true, tag = null } = req.body;
+  const { name, subtitle, price, tone = 'warm', veg = true, tag = null, photo_url = null } = req.body;
   if (!name || !price) return res.status(400).json({ error: 'name and price required' });
   const cookId = req.user.sub;
   const id = `${cookId}-${Date.now()}`;
   db.prepare(
-    'INSERT INTO dishes (id, cook_id, name, subtitle, price, tone, veg, tag) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(id, cookId, name, subtitle || null, Number(price), tone, veg ? 1 : 0, tag || null);
+    'INSERT INTO dishes (id, cook_id, name, subtitle, price, tone, veg, tag, photo_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(id, cookId, name, subtitle || null, Number(price), tone, veg ? 1 : 0, tag || null, photo_url || null);
   res.status(201).json(db.prepare('SELECT * FROM dishes WHERE id = ?').get(id));
 });
 

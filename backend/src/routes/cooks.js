@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /api/cooks — list all cooks with their dishes
@@ -35,6 +36,25 @@ router.put('/:id/online', (req, res) => {
   const { online } = req.body;
   db.prepare('UPDATE cooks SET online = ? WHERE id = ?').run(online ? 1 : 0, req.params.id);
   res.json({ ok: true });
+});
+
+// PUT /api/cooks/profile — cook updates their own profile (JWT required)
+router.put('/profile', requireAuth, (req, res) => {
+  if (req.user.role !== 'cook') return res.status(403).json({ error: 'Cook only' });
+  const { bio, area, address, tags, languages, schedule, min_order } = req.body;
+  db.prepare(`
+    UPDATE cooks SET
+      bio = COALESCE(?, bio),
+      area = COALESCE(?, area),
+      address = COALESCE(?, address),
+      tags = COALESCE(?, tags),
+      languages = COALESCE(?, languages),
+      schedule = COALESCE(?, schedule),
+      min_order = COALESCE(?, min_order)
+    WHERE id = ?
+  `).run(bio ?? null, area ?? null, address ?? null, tags ?? null, languages ?? null, schedule ?? null, min_order ?? null, req.user.sub);
+  const cook = db.prepare('SELECT * FROM cooks WHERE id = ?').get(req.user.sub);
+  res.json({ ok: true, cook });
 });
 
 module.exports = router;

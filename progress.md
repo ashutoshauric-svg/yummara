@@ -121,11 +121,58 @@ No need to check the terminal.
 | 9900000006 | Krishnan  | Whitefield      |
 
 ### What's NOT done (next phases)
-- [ ] Delivery partner app + live map tracking
 - [ ] Real payments (Razorpay / UPI)
 - [ ] Push notifications (order alerts when browser is closed)
-- [ ] Cook profile editing (bio, photo, schedule)
 - [ ] Multi-cook cart (currently only first cook's items sent to API)
 - [ ] WhatsApp OTP template approval (currently using DEV_OTP mode)
 - [ ] Real-time chat: customer side doesn't yet auto-receive cook replies via socket
-      (needs socket join on conv_{id} room from customer chat panel)
+- [ ] Fast2SMS / real OTP integration
+- [ ] Cook registration + Borzo → needs local test before push (in progress)
+
+---
+
+## 2026-06-06 — Day 4
+
+### Status: Cook registration + Borzo delivery + Cook profile — built, pending local test + push
+
+### Done
+- **Cook registration**: new cooks sign up from cook.html via phone+OTP
+  - `POST /api/auth/cook-register` stores pending data, sends OTP
+  - `POST /api/auth/verify-otp` with `role=cook-register` creates cook account
+  - `pending_cook_registrations` table (cleaned up after OTP verify)
+  - Frontend: "Register as a new cook" button on cook landing → multi-step form
+- **Cook profile tab**: logged-in cooks edit bio, area, address, tags, schedule, min_order
+  - `PUT /api/cooks/profile` (JWT required)
+  - Address field is the Borzo pickup point — shown with a warning if missing
+- **Borzo delivery integration** (test sandbox)
+  - `deliveries` table: borzo_order_id, status, rider_name, rider_phone, price
+  - `POST /api/delivery/dispatch/:orderId` — creates Borzo order, requires cook address + customer address
+  - `POST /api/delivery/webhook` — Borzo calls this on status changes, updates rider info
+  - `GET /api/delivery/:orderId` — frontend polls for rider info
+  - `POST /api/delivery/estimate` — price estimate before dispatch
+  - OrderCard: "Dispatch Rider" button appears when order status = ready
+  - Shows rider name/phone/status once assigned
+  - BORZO_TEST=true uses sandbox API (robotapitest-in.borzodelivery.com)
+- DB migrations: `address TEXT` + `status TEXT` added to cooks table
+- Backend `.env`: BORZO_TOKEN + BORZO_TEST added (test token)
+
+### Env vars added to Railway (required)
+| Variable | Value |
+|----------|-------|
+| BORZO_TOKEN | (test token — replace with prod token before go-live) |
+| BORZO_TEST | true |
+
+### Deployment URLs
+- Frontend: https://yummara-iota.vercel.app
+- Backend: https://yummara-production.up.railway.app
+- Auto-deploy: every `git push origin main` deploys both
+
+### What's NOT done (next phases)
+- [ ] Real payments (Razorpay / UPI)
+- [ ] Push notifications (order alerts when browser is closed)
+- [ ] Multi-cook cart (currently only first cook's items sent to API)
+- [ ] WhatsApp OTP / Fast2SMS real OTP delivery
+- [ ] Real-time chat: customer side auto-receive cook replies via socket
+- [ ] Borzo webhook URL needs to be registered in Borzo dashboard (production)
+- [ ] Switch BORZO_TEST=false when going live with real deliveries
+- [ ] Cook registration: admin approval flow (currently auto-approved)
