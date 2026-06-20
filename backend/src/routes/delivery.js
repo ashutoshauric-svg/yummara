@@ -4,8 +4,8 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
 const BORZO_URL = process.env.BORZO_TEST === 'true'
-  ? 'https://robotapitest-in.borzodelivery.com/api/business/1.6'
-  : 'https://robot-in.borzodelivery.com/api/business/1.6';
+  ? 'https://robotapitest-in.borzodelivery.com/api/business/1.8'
+  : 'https://robot-in.borzodelivery.com/api/business/1.8';
 
 function borzoHeaders() {
   return {
