@@ -31,7 +31,8 @@ app.use('/api/orders', require('./src/routes/orders'));
 app.use('/api/user',   require('./src/routes/users'));
 app.use('/api/dishes', require('./src/routes/dishes'));
 app.use('/api/chat',     require('./src/routes/chat'));
-app.use('/api/delivery', require('./src/routes/delivery'));
+app.use('/api/delivery',  require('./src/routes/delivery'));
+app.use('/api/whatsapp', require('./src/routes/whatsapp'));
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
