@@ -33,6 +33,7 @@ app.use('/api/dishes', require('./src/routes/dishes'));
 app.use('/api/chat',     require('./src/routes/chat'));
 app.use('/api/delivery',  require('./src/routes/delivery'));
 app.use('/api/whatsapp', require('./src/routes/whatsapp'));
+app.use('/api/payment', require('./src/routes/payment'));
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 

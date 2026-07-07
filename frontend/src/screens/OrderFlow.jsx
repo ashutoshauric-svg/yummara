@@ -267,12 +267,26 @@ function Block({ title, kicker, children }) {
   );
 }
 
+const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) { resolve(true); return; }
+    const s = document.createElement('script');
+    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.body.appendChild(s);
+  });
+}
+
 export function CheckoutScreen({ onPlace, isMobile }) {
   const { cart, cartTotal, cartCount, authUser, openAuth } = React.useContext(NavCtx);
   const [tip, setTip] = React.useState(20);
   const [address, setAddress] = React.useState('');
   const [customerName, setCustomerName] = React.useState(authUser?.user?.name || '');
   const [customerPhone, setCustomerPhone] = React.useState(authUser?.user?.phone || '');
+  const [paying, setPaying] = React.useState(false);
 
   const groups = React.useMemo(() => {
     const m = {};
@@ -355,14 +369,64 @@ export function CheckoutScreen({ onPlace, isMobile }) {
               <div className="num" style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 600 }}>₹{total}</div>
             </div>
             <YButton variant="primary" size="lg" full style={{ marginTop: 18 }}
-              onClick={() => {
+              disabled={paying}
+              onClick={async () => {
                 if (!customerName.trim()) { alert('Please enter your name'); return; }
                 if (!/^\d{10}$/.test(customerPhone)) { alert('Please enter a valid 10-digit phone'); return; }
-                onPlace({ total, customerName: customerName.trim(), customerPhone, tip, address });
+                if (!address.trim()) { alert('Please enter delivery address'); return; }
+
+                setPaying(true);
+                try {
+                  const loaded = await loadRazorpayScript();
+                  if (!loaded) { alert('Could not load payment gateway. Check your connection.'); return; }
+
+                  const headers = { 'Content-Type': 'application/json' };
+                  if (authUser?.token) headers['Authorization'] = `Bearer ${authUser.token}`;
+                  const orderRes = await fetch(`${API_URL}/api/payment/create-order`, {
+                    method: 'POST', headers,
+                    body: JSON.stringify({ amount: total }),
+                  });
+                  const orderData = await orderRes.json();
+                  if (!orderRes.ok) throw new Error(orderData.error || 'Could not create order');
+
+                  const rzp = new window.Razorpay({
+                    key: RAZORPAY_KEY,
+                    amount: orderData.amount,
+                    currency: orderData.currency,
+                    order_id: orderData.order_id,
+                    name: 'Yummara',
+                    description: 'Home-cooked meal delivery',
+                    prefill: { name: customerName.trim(), contact: `+91${customerPhone}` },
+                    theme: { color: '#2d6a4f' },
+                    modal: { ondismiss: () => setPaying(false) },
+                    handler: async (response) => {
+                      try {
+                        const verifyRes = await fetch(`${API_URL}/api/payment/verify`, {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(response),
+                        });
+                        const verifyData = await verifyRes.json();
+                        if (!verifyRes.ok) throw new Error(verifyData.error || 'Payment verification failed');
+                        onPlace({ total, customerName: customerName.trim(), customerPhone, tip, address, payment_id: verifyData.payment_id });
+                      } catch (err) {
+                        alert('Payment verification failed: ' + err.message);
+                        setPaying(false);
+                      }
+                    },
+                  });
+                  rzp.on('payment.failed', (e) => {
+                    alert('Payment failed: ' + (e.error?.description || 'Unknown error'));
+                    setPaying(false);
+                  });
+                  rzp.open();
+                } catch (err) {
+                  alert('Payment error: ' + err.message);
+                  setPaying(false);
+                }
               }}
-              iconRight={Ic.arrow()}
+              iconRight={paying ? null : Ic.arrow()}
             >
-              Place order · ₹{total}
+              {paying ? 'Opening payment…' : `Pay ₹${total}`}
             </YButton>
             <div style={{ fontSize: 11, color: 'var(--yum-ink-3)', marginTop: 10, textAlign: 'center' }}>Refundable within 60 seconds.</div>
           </div>
