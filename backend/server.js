@@ -9,9 +9,17 @@ const server = http.createServer(app);
 
 // CORS_ORIGINS env var: comma-separated list of allowed origins
 // e.g. "https://yummara.vercel.app,http://localhost:5173"
-const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
+const STATIC_ORIGINS = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
   : ['http://localhost:5173', 'http://localhost:8080'];
+
+// Allow listed origins plus any Vercel deployment/preview URL of this project
+const ALLOWED_ORIGINS = (origin, cb) => {
+  if (!origin || STATIC_ORIGINS.includes(origin) || /^https:\/\/yummara-[a-z0-9-]+\.vercel\.app$/.test(origin)) {
+    return cb(null, true);
+  }
+  cb(null, false);
+};
 
 const io = new Server(server, {
   cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] },
