@@ -33,4 +33,13 @@ router.get('/:orderId', (req, res) => {
   res.json({ delivery });
 });
 
+// POST /api/delivery/adloggs/webhook — receives order status pushes from Adloggs
+// Register this URL in the Adloggs dashboard (Webhook section, Step 2 of their onboarding guide).
+// Payload shape is unconfirmed until we get their API reference — logging raw body for now so we
+// can see real event structure during their Test Webhook step, then map statuses to our `deliveries` table.
+router.post('/adloggs/webhook', (req, res) => {
+  console.log('[adloggs webhook]', JSON.stringify(req.body));
+  res.sendStatus(200); // ack fast — Adloggs treats a slow/non-2xx response as a failed delivery of the event
+});
+
 module.exports = router;

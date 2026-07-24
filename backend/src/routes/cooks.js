@@ -41,7 +41,7 @@ router.put('/:id/online', (req, res) => {
 // PUT /api/cooks/profile — cook updates their own profile (JWT required)
 router.put('/profile', requireAuth, (req, res) => {
   if (req.user.role !== 'cook') return res.status(403).json({ error: 'Cook only' });
-  const { bio, area, address, tags, languages, schedule, min_order } = req.body;
+  const { bio, area, address, tags, languages, schedule, min_order, lat, lng } = req.body;
   db.prepare(`
     UPDATE cooks SET
       bio = COALESCE(?, bio),
@@ -50,9 +50,11 @@ router.put('/profile', requireAuth, (req, res) => {
       tags = COALESCE(?, tags),
       languages = COALESCE(?, languages),
       schedule = COALESCE(?, schedule),
-      min_order = COALESCE(?, min_order)
+      min_order = COALESCE(?, min_order),
+      pickup_lat = COALESCE(?, pickup_lat),
+      pickup_lng = COALESCE(?, pickup_lng)
     WHERE id = ?
-  `).run(bio ?? null, area ?? null, address ?? null, tags ?? null, languages ?? null, schedule ?? null, min_order ?? null, req.user.sub);
+  `).run(bio ?? null, area ?? null, address ?? null, tags ?? null, languages ?? null, schedule ?? null, min_order ?? null, lat ?? null, lng ?? null, req.user.sub);
   const cook = db.prepare('SELECT * FROM cooks WHERE id = ?').get(req.user.sub);
   res.json({ ok: true, cook });
 });

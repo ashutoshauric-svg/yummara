@@ -510,9 +510,26 @@ function CookProfileTab({ cook, token, onUpdate }) {
     bio: cook.bio || '', area: cook.area || '', address: cook.address || '',
     tags: cook.tags || '', languages: cook.languages || '',
     schedule: cook.schedule || '', min_order: cook.min_order || 0,
+    lat: cook.pickup_lat ?? null, lng: cook.pickup_lng ?? null,
   });
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
+  const [locating, setLocating] = React.useState(false);
+  const [locError, setLocError] = React.useState('');
+
+  const captureLocation = () => {
+    if (!navigator.geolocation) { setLocError('Location not supported on this device'); return; }
+    setLocating(true);
+    setLocError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm(f => ({ ...f, lat: pos.coords.latitude, lng: pos.coords.longitude }));
+        setLocating(false);
+      },
+      (err) => { setLocError(err.message || 'Could not get location'); setLocating(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const save = async () => {
     setSaving(true);
@@ -548,6 +565,23 @@ function CookProfileTab({ cook, token, onUpdate }) {
         <strong>Pickup address is required</strong> to dispatch a Borzo rider when orders are ready.
       </div>
       {field('Pickup address (for Borzo delivery)', 'address', { placeholder: '12 CMH Road, Indiranagar, Bangalore 560038', hint: 'Full street address — this is where the rider picks up food' })}
+
+      <div style={{ marginBottom: 18 }}>
+        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--yum-ink-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.05 }}>Kitchen location</label>
+        {form.lat && form.lng ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--yum-primary-50)', border: '1px solid var(--yum-primary-100)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--yum-primary-700)' }}>
+            <span>Location set ({form.lat.toFixed(5)}, {form.lng.toFixed(5)})</span>
+            <YButton variant="ghost" size="sm" onClick={captureLocation} disabled={locating}>{locating ? 'Locating…' : 'Update'}</YButton>
+          </div>
+        ) : (
+          <YButton variant="secondary" onClick={captureLocation} disabled={locating}>
+            {locating ? 'Getting location…' : 'Set my kitchen location'}
+          </YButton>
+        )}
+        {locError && <div style={{ fontSize: 11, color: '#c0392b', marginTop: 4 }}>{locError}</div>}
+        <div style={{ fontSize: 11, color: 'var(--yum-ink-4)', marginTop: 4 }}>Stand in your kitchen and tap this — riders use it as the exact pickup pin.</div>
+      </div>
+
       {field('Neighbourhood / Area', 'area', { placeholder: 'Indiranagar' })}
       {field('Cuisine tags', 'tags', { placeholder: 'South Indian · Tamil · Tiffin' })}
       {field('Languages', 'languages', { placeholder: 'Tamil · English · Kannada' })}

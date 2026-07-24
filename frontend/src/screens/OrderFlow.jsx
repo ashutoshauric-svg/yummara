@@ -284,9 +284,23 @@ export function CheckoutScreen({ onPlace, isMobile }) {
   const { cart, cartTotal, cartCount, authUser, openAuth } = React.useContext(NavCtx);
   const [tip, setTip] = React.useState(20);
   const [address, setAddress] = React.useState('');
+  const [deliveryLoc, setDeliveryLoc] = React.useState(null); // { lat, lng }
+  const [locating, setLocating] = React.useState(false);
+  const [locError, setLocError] = React.useState('');
   const [customerName, setCustomerName] = React.useState(authUser?.user?.name || '');
   const [customerPhone, setCustomerPhone] = React.useState(authUser?.user?.phone || '');
   const [paying, setPaying] = React.useState(false);
+
+  const captureLocation = () => {
+    if (!navigator.geolocation) { setLocError('Location not supported on this device'); return; }
+    setLocating(true);
+    setLocError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setDeliveryLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocating(false); },
+      (err) => { setLocError(err.message || 'Could not get location'); setLocating(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const groups = React.useMemo(() => {
     const m = {};
@@ -327,6 +341,19 @@ export function CheckoutScreen({ onPlace, isMobile }) {
           <Block title="Delivery address" kicker="01">
             <input value={address} onChange={e => setAddress(e.target.value)} placeholder="Full delivery address"
               style={{ width: '100%', height: 44, padding: '0 14px', background: 'var(--yum-paper)', border: '1px solid var(--yum-border)', borderRadius: 'var(--r-md)', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}/>
+            <div style={{ marginTop: 10 }}>
+              {deliveryLoc ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--yum-primary-50)', border: '1px solid var(--yum-primary-100)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--yum-primary-700)' }}>
+                  <span>Location pinned</span>
+                  <YButton variant="ghost" size="sm" onClick={captureLocation} disabled={locating}>{locating ? 'Locating…' : 'Update'}</YButton>
+                </div>
+              ) : (
+                <YButton variant="secondary" size="sm" onClick={captureLocation} disabled={locating}>
+                  {locating ? 'Getting location…' : 'Use my current location'}
+                </YButton>
+              )}
+              {locError && <div style={{ fontSize: 11, color: '#c0392b', marginTop: 4 }}>{locError}</div>}
+            </div>
           </Block>
 
           <Block title="From the kitchens" kicker="02">
@@ -407,7 +434,7 @@ export function CheckoutScreen({ onPlace, isMobile }) {
                         });
                         const verifyData = await verifyRes.json();
                         if (!verifyRes.ok) throw new Error(verifyData.error || 'Payment verification failed');
-                        onPlace({ total, customerName: customerName.trim(), customerPhone, tip, address, payment_id: verifyData.payment_id });
+                        onPlace({ total, customerName: customerName.trim(), customerPhone, tip, address, lat: deliveryLoc?.lat ?? null, lng: deliveryLoc?.lng ?? null, payment_id: verifyData.payment_id });
                       } catch (err) {
                         alert('Payment verification failed: ' + err.message);
                         setPaying(false);

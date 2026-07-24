@@ -3,9 +3,9 @@ const db = require('../db');
 const router = express.Router();
 
 // POST /api/orders — customer places an order
-// Body: { customerName, customerPhone, cookId, items: [{dishId, qty}], tip, address }
+// Body: { customerName, customerPhone, cookId, items: [{dishId, qty}], tip, address, lat, lng }
 router.post('/', (req, res) => {
-  const { customerName, customerPhone, cookId, items, tip = 0, address = '' } = req.body;
+  const { customerName, customerPhone, cookId, items, tip = 0, address = '', lat = null, lng = null } = req.body;
 
   if (!customerName || !customerPhone || !cookId || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -30,9 +30,9 @@ router.post('/', (req, res) => {
 
   const placeOrder = db.transaction(() => {
     const result = db.prepare(`
-      INSERT INTO orders (customer_name, customer_phone, cook_id, status, total, tip, address)
-      VALUES (?, ?, ?, 'pending', ?, ?, ?)
-    `).run(customerName, String(customerPhone), cookId, total, tip, address);
+      INSERT INTO orders (customer_name, customer_phone, cook_id, status, total, tip, address, delivery_lat, delivery_lng)
+      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?)
+    `).run(customerName, String(customerPhone), cookId, total, tip, address, lat, lng);
 
     const orderId = result.lastInsertRowid;
     const insertItem = db.prepare('INSERT INTO order_items (order_id, dish_id, qty, unit_price) VALUES (?, ?, ?, ?)');

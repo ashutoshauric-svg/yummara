@@ -62,7 +62,7 @@ export function App() {
   const socketRef    = React.useRef(null);
   const [placedOrder, setPlacedOrder] = React.useState(null);
 
-  const placeOrder = async ({ total, customerName, customerPhone, tip, address }) => {
+  const placeOrder = async ({ total, customerName, customerPhone, tip, address, lat, lng }) => {
     const groups = Object.values(cart.reduce((m, it) => {
       (m[it.cookId] ||= { cookId: it.cookId, cookShort: it.cookShort, items: [] }).items.push(it);
       return m;
@@ -83,6 +83,8 @@ export function App() {
           items: firstGroup.items.map(it => ({ dishId: it.dishId, qty: it.qty })),
           tip: tip || 0,
           address: address || '',
+          lat: lat ?? null,
+          lng: lng ?? null,
         }),
       });
       const data = await res.json();
