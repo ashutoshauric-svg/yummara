@@ -243,6 +243,8 @@ try { db.exec("ALTER TABLE cooks ADD COLUMN pickup_lat REAL"); } catch (_) {}
 try { db.exec("ALTER TABLE cooks ADD COLUMN pickup_lng REAL"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN delivery_lat REAL"); } catch (_) {}
 try { db.exec("ALTER TABLE orders ADD COLUMN delivery_lng REAL"); } catch (_) {}
+try { db.exec("ALTER TABLE deliveries ADD COLUMN provider TEXT NOT NULL DEFAULT 'dummy'"); } catch (_) {}
+try { db.exec("ALTER TABLE deliveries ADD COLUMN adloggs_order_uuid TEXT"); } catch (_) {}
 
 // Seed cooks and dishes if empty
 const cookCount = db.prepare('SELECT COUNT(*) as n FROM cooks').get().n;
