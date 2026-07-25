@@ -347,9 +347,15 @@ export function CheckoutScreen({ onPlace, isMobile }) {
                   <YButton variant="ghost" size="sm" onClick={captureLocation} disabled={locating}>{locating ? 'Locating…' : 'Update'}</YButton>
                 </div>
               ) : (
-                <YButton variant="secondary" size="sm" onClick={captureLocation} disabled={locating}>
-                  {locating ? 'Getting location…' : 'Use my current location'}
-                </YButton>
+                // Required: without coordinates no rider can be booked, so we must not let the
+                // customer pay for a delivery that cannot be dispatched.
+                <div style={{ padding: '12px 14px', background: '#fef9ec', border: '1px solid #e8d080', borderRadius: 'var(--r-md)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#a07c10', marginBottom: 2 }}>Pin your location — required</div>
+                  <div style={{ fontSize: 12, color: 'var(--yum-ink-2)', marginBottom: 8 }}>Your rider needs exact coordinates to find you.</div>
+                  <YButton variant="primary" size="sm" onClick={captureLocation} disabled={locating}>
+                    {locating ? 'Getting location…' : 'Use my current location'}
+                  </YButton>
+                </div>
               )}
               {locError && <div style={{ fontSize: 11, color: '#c0392b', marginTop: 4 }}>{locError}</div>}
             </div>
@@ -400,6 +406,7 @@ export function CheckoutScreen({ onPlace, isMobile }) {
                 if (!customerName.trim()) { alert('Please enter your name'); return; }
                 if (!/^\d{10}$/.test(customerPhone)) { alert('Please enter a valid 10-digit phone'); return; }
                 if (!address.trim()) { alert('Please enter delivery address'); return; }
+                if (!deliveryLoc) { alert('Please tap "Use my current location" — your rider needs exact coordinates to find you.'); return; }
 
                 const firstGroup = groups[0];
                 if (!firstGroup?.cook) { alert('Your cart is empty'); return; }
