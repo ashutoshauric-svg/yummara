@@ -7,9 +7,9 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
+        landing: resolve(__dirname, 'index.html'),  // marketing page — what visitors land on
+        app: resolve(__dirname, 'app.html'),        // the ordering app
         cook: resolve(__dirname, 'cook.html'),
-        landing: resolve(__dirname, 'landing.html'),
       },
     },
   },
