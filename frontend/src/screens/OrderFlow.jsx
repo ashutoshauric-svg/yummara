@@ -4,7 +4,7 @@ import { DishCard } from '../components/cards';
 import { NavCtx, useNav } from '../lib/NavCtx';
 import { YUM_INDEX } from '../data/cooks';
 import { CustomerChatPanel } from './Chat';
-import { API_URL } from '../lib/config';
+import { API_URL, DELIVERY_FEE, PLATFORM_FEE } from '../lib/config';
 
 // ─── Shared header ────────────────────────────────────────────────
 function ScreenHeader({ title, subtitle, right, isMobile }) {
@@ -200,8 +200,8 @@ export function CartSheet({ onClose, onCheckout, isMobile }) {
     (acc[item.cookId] ||= { cookId: item.cookId, cookShort: item.cookShort, items: [] }).items.push(item);
     return acc;
   }, {}));
-  const deliveryFee = cartCount ? 29 : 0;
-  const platformFee = cartCount ? 12 : 0;
+  const deliveryFee = cartCount ? DELIVERY_FEE : 0;
+  const platformFee = cartCount ? PLATFORM_FEE : 0;
   const total = cartTotal + deliveryFee + platformFee;
 
   return (
@@ -307,8 +307,8 @@ export function CheckoutScreen({ onPlace, isMobile }) {
     return Object.values(m);
   }, [cart]);
 
-  const deliveryFee = 29;
-  const platformFee = 12;
+  const deliveryFee = DELIVERY_FEE;
+  const platformFee = PLATFORM_FEE;
   const total = cartTotal + deliveryFee + platformFee + tip;
 
   return (

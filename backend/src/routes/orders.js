@@ -3,6 +3,11 @@ const db = require('../db');
 const { dispatchOrder } = require('../lib/dispatch');
 const router = express.Router();
 
+// Must match the frontend's VITE_DELIVERY_FEE / VITE_PLATFORM_FEE, or the amount charged
+// through Razorpay won't match the order total stored here.
+const DELIVERY_FEE = Number(process.env.DELIVERY_FEE ?? 29);
+const PLATFORM_FEE = Number(process.env.PLATFORM_FEE ?? 12);
+
 // POST /api/orders — customer places an order
 // Body: { customerName, customerPhone, cookId, items: [{dishId, qty}], tip, address, lat, lng }
 router.post('/', (req, res) => {
@@ -27,7 +32,7 @@ router.post('/', (req, res) => {
   }
 
   const itemsTotal = items.reduce((sum, i) => sum + dishMap[i.dishId].price * i.qty, 0);
-  const total = itemsTotal + 29 + 12 + tip; // delivery + platform + tip
+  const total = itemsTotal + DELIVERY_FEE + PLATFORM_FEE + tip;
 
   const placeOrder = db.transaction(() => {
     const result = db.prepare(`
