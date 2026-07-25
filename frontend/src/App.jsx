@@ -62,7 +62,9 @@ export function App() {
   const socketRef    = React.useRef(null);
   const [placedOrder, setPlacedOrder] = React.useState(null);
 
-  const placeOrder = async ({ total, customerName, customerPhone, tip, address, lat, lng }) => {
+  // `createdOrder` is passed in for paid orders — the backend creates those inside payment
+  // verification, so there is no second request here that could fail after the card is charged.
+  const placeOrder = async ({ total, customerName, customerPhone, tip, address, lat, lng, createdOrder }) => {
     const groups = Object.values(cart.reduce((m, it) => {
       (m[it.cookId] ||= { cookId: it.cookId, cookShort: it.cookShort, items: [] }).items.push(it);
       return m;
@@ -71,24 +73,27 @@ export function App() {
     if (!firstGroup) return;
 
     try {
-      const headers = { 'Content-Type': 'application/json' };
-      if (authUser?.token) headers['Authorization'] = `Bearer ${authUser.token}`;
-      const res = await fetch(`${API_URL}/api/orders`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          customerName,
-          customerPhone: String(customerPhone),
-          cookId: firstGroup.cookId,
-          items: firstGroup.items.map(it => ({ dishId: it.dishId, qty: it.qty })),
-          tip: tip || 0,
-          address: address || '',
-          lat: lat ?? null,
-          lng: lng ?? null,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Order failed');
+      let data = createdOrder;
+      if (!data) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (authUser?.token) headers['Authorization'] = `Bearer ${authUser.token}`;
+        const res = await fetch(`${API_URL}/api/orders`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            customerName,
+            customerPhone: String(customerPhone),
+            cookId: firstGroup.cookId,
+            items: firstGroup.items.map(it => ({ dishId: it.dishId, qty: it.qty })),
+            tip: tip || 0,
+            address: address || '',
+            lat: lat ?? null,
+            lng: lng ?? null,
+          }),
+        });
+        data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Order failed');
+      }
 
       setPlacedOrder({ id: data.id, status: data.status, groups, total });
       setCart([]);

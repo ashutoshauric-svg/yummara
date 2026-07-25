@@ -1,61 +1,20 @@
 const express = require('express');
 const db = require('../db');
 const { dispatchOrder } = require('../lib/dispatch');
+const { createOrder, getOrderWithItems } = require('../lib/orders');
 const router = express.Router();
 
-// Must match the frontend's VITE_DELIVERY_FEE / VITE_PLATFORM_FEE, or the amount charged
-// through Razorpay won't match the order total stored here.
-const DELIVERY_FEE = Number(process.env.DELIVERY_FEE ?? 29);
-const PLATFORM_FEE = Number(process.env.PLATFORM_FEE ?? 12);
-
-// POST /api/orders — customer places an order
-// Body: { customerName, customerPhone, cookId, items: [{dishId, qty}], tip, address, lat, lng }
+// POST /api/orders — place an order without payment (cash flows / internal use).
+// Paid orders are created inside POST /api/payment/verify instead, so that a captured
+// payment can never end up without an order behind it.
 router.post('/', (req, res) => {
-  const { customerName, customerPhone, cookId, items, tip = 0, address = '', lat = null, lng = null } = req.body;
-
-  if (!customerName || !customerPhone || !cookId || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  const cook = db.prepare('SELECT id FROM cooks WHERE id = ?').get(cookId);
-  if (!cook) return res.status(404).json({ error: 'Cook not found' });
-
-  // Resolve prices from DB (never trust client-sent prices)
-  const dishIds = items.map(i => i.dishId);
-  const placeholders = dishIds.map(() => '?').join(',');
-  const dishes = db.prepare(`SELECT * FROM dishes WHERE id IN (${placeholders})`).all(...dishIds);
-  const dishMap = Object.fromEntries(dishes.map(d => [d.id, d]));
-
-  for (const item of items) {
-    if (!dishMap[item.dishId]) return res.status(400).json({ error: `Dish ${item.dishId} not found` });
-    if (dishMap[item.dishId].cook_id !== cookId) return res.status(400).json({ error: 'Dish does not belong to this cook' });
-  }
-
-  const itemsTotal = items.reduce((sum, i) => sum + dishMap[i.dishId].price * i.qty, 0);
-  const total = itemsTotal + DELIVERY_FEE + PLATFORM_FEE + tip;
-
-  const placeOrder = db.transaction(() => {
-    const result = db.prepare(`
-      INSERT INTO orders (customer_name, customer_phone, cook_id, status, total, tip, address, delivery_lat, delivery_lng)
-      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?)
-    `).run(customerName, String(customerPhone), cookId, total, tip, address, lat, lng);
-
-    const orderId = result.lastInsertRowid;
-    const insertItem = db.prepare('INSERT INTO order_items (order_id, dish_id, qty, unit_price) VALUES (?, ?, ?, ?)');
-    for (const item of items) {
-      insertItem.run(orderId, item.dishId, item.qty, dishMap[item.dishId].price);
-    }
-    return orderId;
-  });
-
-  const orderId = placeOrder();
-  const order = getOrderWithItems(orderId);
+  const result = createOrder(req.body);
+  if (!result.ok) return res.status(result.code || 400).json({ error: result.error });
 
   // Emit socket event to cook's room
-  const io = req.app.get('io');
-  io.to(`cook:${cookId}`).emit('new_order', order);
+  req.app.get('io').to(`cook:${result.order.cook_id}`).emit('new_order', result.order);
 
-  res.status(201).json(order);
+  res.status(201).json(result.order);
 });
 
 // GET /api/orders/:id — get a single order (customer polls for status)
@@ -116,17 +75,5 @@ router.put('/:id/status', async (req, res) => {
 
   res.json({ ...updated, dispatch });
 });
-
-function getOrderWithItems(orderId) {
-  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
-  if (!order) return null;
-  order.items = db.prepare(`
-    SELECT oi.*, d.name, d.subtitle, d.veg, d.tone
-    FROM order_items oi
-    JOIN dishes d ON oi.dish_id = d.id
-    WHERE oi.order_id = ?
-  `).all(order.id);
-  return order;
-}
 
 module.exports = router;

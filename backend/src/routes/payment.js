@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
+const { createOrder } = require('../lib/orders');
 const router = express.Router();
 
 const razorpay = new Razorpay({
@@ -30,8 +31,11 @@ router.post('/create-order', async (req, res) => {
 });
 
 // POST /api/payment/verify
+// Verifies the signature AND creates the order in the same request. Creating the order in a
+// separate follow-up call meant any failure in between (crash, deploy, dropped connection) left
+// the customer charged with no order for the cook to see.
 router.post('/verify', (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order } = req.body;
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
     return res.status(400).json({ error: 'Missing payment fields' });
   }
@@ -45,7 +49,22 @@ router.post('/verify', (req, res) => {
     return res.status(400).json({ error: 'Payment verification failed' });
   }
 
-  res.json({ ok: true, payment_id: razorpay_payment_id });
+  if (!order) return res.json({ ok: true, payment_id: razorpay_payment_id, order: null });
+
+  const result = createOrder(order);
+  if (!result.ok) {
+    // Payment is already captured — surface it loudly so it can be reconciled or refunded
+    // rather than silently swallowed.
+    console.error('[payment] PAID BUT ORDER FAILED', razorpay_payment_id, result.error, JSON.stringify(order));
+    return res.status(500).json({
+      error: `Payment succeeded but the order could not be created: ${result.error}. Payment ID ${razorpay_payment_id} — contact support for a refund.`,
+      payment_id: razorpay_payment_id,
+    });
+  }
+
+  req.app.get('io').to(`cook:${result.order.cook_id}`).emit('new_order', result.order);
+
+  res.json({ ok: true, payment_id: razorpay_payment_id, order: result.order });
 });
 
 module.exports = router;

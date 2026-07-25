@@ -401,6 +401,19 @@ export function CheckoutScreen({ onPlace, isMobile }) {
                 if (!/^\d{10}$/.test(customerPhone)) { alert('Please enter a valid 10-digit phone'); return; }
                 if (!address.trim()) { alert('Please enter delivery address'); return; }
 
+                const firstGroup = groups[0];
+                if (!firstGroup?.cook) { alert('Your cart is empty'); return; }
+                const orderPayload = {
+                  customerName: customerName.trim(),
+                  customerPhone: String(customerPhone),
+                  cookId: firstGroup.cook.id,
+                  items: firstGroup.items.map(it => ({ dishId: it.dishId, qty: it.qty })),
+                  tip: tip || 0,
+                  address,
+                  lat: deliveryLoc?.lat ?? null,
+                  lng: deliveryLoc?.lng ?? null,
+                };
+
                 setPaying(true);
                 try {
                   const loaded = await loadRazorpayScript();
@@ -427,13 +440,15 @@ export function CheckoutScreen({ onPlace, isMobile }) {
                     modal: { ondismiss: () => setPaying(false) },
                     handler: async (response) => {
                       try {
+                        // Send the order with the verification so the backend creates it in the
+                        // same request — a separate follow-up call could fail after the charge.
                         const verifyRes = await fetch(`${API_URL}/api/payment/verify`, {
                           method: 'POST', headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify(response),
+                          body: JSON.stringify({ ...response, order: orderPayload }),
                         });
                         const verifyData = await verifyRes.json();
                         if (!verifyRes.ok) throw new Error(verifyData.error || 'Payment verification failed');
-                        onPlace({ total, customerName: customerName.trim(), customerPhone, tip, address, lat: deliveryLoc?.lat ?? null, lng: deliveryLoc?.lng ?? null, payment_id: verifyData.payment_id });
+                        onPlace({ total, customerName: customerName.trim(), customerPhone, tip, address, lat: deliveryLoc?.lat ?? null, lng: deliveryLoc?.lng ?? null, payment_id: verifyData.payment_id, createdOrder: verifyData.order });
                       } catch (err) {
                         alert('Payment verification failed: ' + err.message);
                         setPaying(false);
