@@ -46,16 +46,15 @@ export function CookProfile({ cookId, isMobile }) {
   const [filter, setFilter] = React.useState('all');
   const [chatOpen, setChatOpen] = React.useState(false);
 
-  // Fetch from API if not in static data (registered cooks)
+  // Always fetch live data — static data (seeded cooks) is only an instant-paint placeholder,
+  // since dishes/profile changes made via the cook dashboard only exist in the database.
   React.useEffect(() => {
-    if (!staticCook) {
-      fetch(`${API_URL}/api/cooks/${cookId}`)
-        .then(r => r.json())
-        .then(data => setCook(data.id ? data : null))
-        .catch(() => {})
-        .finally(() => setLoadingCook(false));
-    }
-  }, [cookId, staticCook]);
+    fetch(`${API_URL}/api/cooks/${cookId}`)
+      .then(r => r.json())
+      .then(data => setCook(data.id ? data : (staticCook || null)))
+      .catch(() => {})
+      .finally(() => setLoadingCook(false));
+  }, [cookId]);
 
   if (loadingCook) return <div style={{ padding: 40, color: 'var(--yum-ink-3)' }}>Loading…</div>;
   if (!cook) return <div style={{ padding: 40 }}>Cook not found.</div>;
