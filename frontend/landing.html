@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Yummara — Ghar ka khana, by the people who cook it</title>
+<meta name="description" content="Order home-cooked meals from verified home cooks in Bangalore. Real kitchens, real people, fresh every day. HSR, Indiranagar, Koramangala & Whitefield."/>
+<link rel="stylesheet" href="/styles.css"/>
+<style>
+  body { margin: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+  @media (max-width: 640px) { .wrap { padding: 0 18px; } }
+
+  /* ── nav ── */
+  .nav {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 0;
+    background: rgba(251,247,240,0.86);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--yum-border-soft);
+  }
+  .logo { display: inline-flex; align-items: baseline; gap: 4px; font-family: var(--font-display); font-size: 23px; font-weight: 600; letter-spacing: -0.02em; }
+  .logo i { width: 5px; height: 5px; border-radius: 999px; background: var(--yum-primary); display: inline-block; transform: translateY(-2px); }
+  .nav-links { display: flex; gap: 26px; font-size: 14px; color: var(--yum-ink-2); }
+  .nav-links a:hover { color: var(--yum-ink); }
+  @media (max-width: 860px) { .nav-links { display: none; } }
+  .nav-cta { display: flex; align-items: center; gap: 10px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 44px; padding: 0 20px; border-radius: var(--r-pill);
+    font-size: 14.5px; font-weight: 600; border: 1px solid transparent;
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+    white-space: nowrap;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary { background: var(--yum-primary); color: var(--yum-ink-on-primary); box-shadow: var(--shadow-sm); }
+  .btn-primary:hover { background: var(--yum-primary-700); box-shadow: var(--shadow-md); }
+  .btn-ghost { background: var(--yum-paper); color: var(--yum-ink); border-color: var(--yum-border); }
+  .btn-ghost:hover { border-color: var(--yum-ink-4); }
+  .btn-sm { height: 38px; padding: 0 16px; font-size: 13.5px; }
+  .btn-lg { height: 54px; padding: 0 28px; font-size: 15.5px; }
+
+  /* ── hero ── */
+  .hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 56px; align-items: center; padding: 76px 0 68px; }
+  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; gap: 40px; padding: 48px 0 44px; } }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--yum-ink-3); margin-bottom: 20px;
+  }
+  .pulse { width: 7px; height: 7px; border-radius: 999px; background: var(--yum-online); box-shadow: 0 0 0 3px rgba(44,138,82,0.16); }
+
+  h1.hero-title { font-size: clamp(40px, 6.2vw, 68px); line-height: 1.03; letter-spacing: -0.028em; font-weight: 500; }
+  .hero-sub { font-size: clamp(16px, 1.8vw, 18.5px); line-height: 1.6; color: var(--yum-ink-2); margin: 22px 0 32px; max-width: 30em; }
+  .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  .hero-note { margin-top: 18px; font-size: 13px; color: var(--yum-ink-3); }
+
+  /* hero collage */
+  .collage { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, 96px); gap: 12px; }
+  @media (max-width: 900px) { .collage { grid-template-rows: repeat(3, 82px); } }
+  .tile { border-radius: var(--r-lg); overflow: hidden; }
+  .tile.tall { grid-row: span 2; }
+  .tile span { font-size: 10.5px; }
+
+  /* ── trust strip ── */
+  .strip { border-top: 1px solid var(--yum-border-soft); border-bottom: 1px solid var(--yum-border-soft); background: var(--yum-cream-deep); }
+  .strip-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; padding: 30px 0; }
+  @media (max-width: 760px) { .strip-grid { grid-template-columns: repeat(2, 1fr); gap: 28px 16px; } }
+  .stat-n { font-family: var(--font-display); font-size: 32px; font-weight: 600; letter-spacing: -0.02em; }
+  .stat-l { font-size: 12.5px; color: var(--yum-ink-3); margin-top: 3px; }
+
+  /* ── sections ── */
+  section.band { padding: 84px 0; }
+  @media (max-width: 700px) { section.band { padding: 58px 0; } }
+  .sec-head { max-width: 640px; margin-bottom: 44px; }
+  .kicker { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--yum-primary); margin-bottom: 12px; }
+  h2.sec-title { font-size: clamp(28px, 3.6vw, 40px); line-height: 1.12; letter-spacing: -0.022em; }
+  .sec-sub { font-size: 16px; line-height: 1.62; color: var(--yum-ink-2); margin-top: 14px; }
+
+  /* steps */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  @media (max-width: 820px) { .steps { grid-template-columns: 1fr; gap: 16px; } }
+  .step { background: var(--yum-paper); border: 1px solid var(--yum-border-soft); border-radius: var(--r-xl); padding: 28px 24px; }
+  .step-n {
+    width: 34px; height: 34px; border-radius: 999px; background: var(--yum-primary-50);
+    color: var(--yum-primary-700); display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 13px; font-weight: 500; margin-bottom: 16px;
+  }
+  .step h3 { font-size: 19px; margin-bottom: 8px; }
+  .step p { font-size: 14.5px; line-height: 1.6; color: var(--yum-ink-2); margin: 0; }
+
+  /* value cards */
+  .values { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  @media (max-width: 760px) { .values { grid-template-columns: 1fr; } }
+  .value { display: flex; gap: 16px; padding: 26px; background: var(--yum-paper); border: 1px solid var(--yum-border-soft); border-radius: var(--r-lg); }
+  .value-ic { flex-shrink: 0; width: 40px; height: 40px; border-radius: var(--r-md); background: var(--yum-primary-50); color: var(--yum-primary-700); display: flex; align-items: center; justify-content: center; }
+  .value h3 { font-size: 17.5px; margin-bottom: 6px; }
+  .value p { font-size: 14.5px; line-height: 1.58; color: var(--yum-ink-2); margin: 0; }
+
+  /* cook band */
+  .cook-band { background: var(--yum-ink); color: var(--yum-cream); border-radius: var(--r-xl); padding: 56px 48px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 44px; align-items: center; }
+  @media (max-width: 860px) { .cook-band { grid-template-columns: 1fr; padding: 38px 26px; gap: 30px; } }
+  .cook-band h2 { color: var(--yum-cream); font-size: clamp(26px, 3.4vw, 38px); line-height: 1.13; letter-spacing: -0.022em; }
+  .cook-band p { color: #cfc6b4; font-size: 16px; line-height: 1.62; margin: 16px 0 28px; }
+  .cook-points { display: grid; gap: 14px; }
+  .cook-point { display: flex; gap: 12px; align-items: flex-start; font-size: 14.5px; color: #e4dccb; }
+  .tick { flex-shrink: 0; width: 20px; height: 20px; border-radius: 999px; background: rgba(106,137,87,0.28); color: #a8c893; display: flex; align-items: center; justify-content: center; font-size: 11px; margin-top: 1px; }
+  .btn-cream { background: var(--yum-cream); color: var(--yum-ink); }
+  .btn-cream:hover { background: #fff; }
+
+  /* areas */
+  .areas { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { padding: 9px 18px; border-radius: var(--r-pill); border: 1px solid var(--yum-border); background: var(--yum-paper); font-size: 14px; color: var(--yum-ink-2); }
+  .chip.soon { color: var(--yum-ink-4); border-style: dashed; background: transparent; }
+
+  /* faq */
+  .faq { display: grid; gap: 12px; max-width: 780px; }
+  details { background: var(--yum-paper); border: 1px solid var(--yum-border-soft); border-radius: var(--r-lg); padding: 18px 22px; }
+  details[open] { border-color: var(--yum-border); }
+  summary { font-size: 15.5px; font-weight: 600; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; font-family: var(--font-mono); font-size: 18px; color: var(--yum-ink-3); flex-shrink: 0; }
+  details[open] summary::after { content: '−'; }
+  details p { font-size: 14.5px; line-height: 1.62; color: var(--yum-ink-2); margin: 12px 0 0; }
+
+  /* final cta */
+  .final { text-align: center; padding: 92px 0; border-top: 1px solid var(--yum-border-soft); }
+  @media (max-width: 700px) { .final { padding: 62px 0; } }
+  .final h2 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.1; letter-spacing: -0.024em; }
+  .final p { font-size: 16.5px; color: var(--yum-ink-2); margin: 16px auto 30px; max-width: 34em; line-height: 1.6; }
+
+  /* footer */
+  footer { border-top: 1px solid var(--yum-border-soft); background: var(--yum-cream-deep); padding: 40px 0; }
+  .foot { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .foot-links { display: flex; gap: 22px; font-size: 13.5px; color: var(--yum-ink-3); flex-wrap: wrap; }
+  .foot-links a:hover { color: var(--yum-ink); }
+  .foot-copy { font-size: 13px; color: var(--yum-ink-4); }
+</style>
+</head>
+<body class="yum">
+
+<div class="wrap">
+  <nav class="nav">
+    <a href="/" class="logo">yummara<i></i></a>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#why">Why Yummara</a>
+      <a href="#cooks">For cooks</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="nav-cta">
+      <a href="/cook.html" class="btn btn-ghost btn-sm">Cook login</a>
+      <a href="/" class="btn btn-primary btn-sm">Order now</a>
+    </div>
+  </nav>
+</div>
+
+<!-- ── hero ── -->
+<div class="wrap">
+  <div class="hero">
+    <div>
+      <div class="eyebrow"><span class="pulse"></span> 6 home cooks live in Bangalore right now</div>
+      <h1 class="hero-title">Ghar ka khana,<br/>by the people<br/>who cook it.</h1>
+      <p class="hero-sub">
+        Real meals from real home kitchens — not a cloud kitchen pretending to be one.
+        Every cook is FSSAI-verified, cooks to order, and keeps 100% of your tip.
+      </p>
+      <div class="hero-actions">
+        <a href="/" class="btn btn-primary btn-lg">Browse cooks near you</a>
+        <a href="#cooks" class="btn btn-ghost btn-lg">Cook with us</a>
+      </div>
+      <div class="hero-note">Order by 6 am for lunch tiffin · or grab what's hot right now</div>
+    </div>
+
+    <div class="collage" aria-hidden="true">
+      <div class="tile tall yum-img tone-warm"><span>Padma's tiffin</span></div>
+      <div class="tile yum-img tone-clay"><span>Garhwali thali</span></div>
+      <div class="tile yum-img tone-green"><span>Avalakki upma</span></div>
+      <div class="tile yum-img tone-green"><span>Dhokla</span></div>
+      <div class="tile yum-img tone-warm"><span>Fish moilee</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── trust strip ── -->
+<div class="strip">
+  <div class="wrap">
+    <div class="strip-grid">
+      <div><div class="stat-n num">6</div><div class="stat-l">Verified home cooks</div></div>
+      <div><div class="stat-n num">4</div><div class="stat-l">Neighbourhoods served</div></div>
+      <div><div class="stat-n num">100%</div><div class="stat-l">Of tips go to the cook</div></div>
+      <div><div class="stat-n num">FSSAI</div><div class="stat-l">Verified kitchens only</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── how it works ── -->
+<div class="wrap">
+  <section class="band" id="how">
+    <div class="sec-head">
+      <div class="kicker">How it works</div>
+      <h2 class="sec-title">Three steps between you and a home-cooked meal.</h2>
+      <p class="sec-sub">No subscriptions, no minimum commitment. Order one meal or eat with us every day.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">01</div>
+        <h3>Find a cook near you</h3>
+        <p>Browse kitchens in your neighbourhood. See what each cook is making today, what they're known for, and how long they take.</p>
+      </div>
+      <div class="step">
+        <div class="step-n">02</div>
+        <h3>Order what's cooking</h3>
+        <p>Pick your dishes, add a tip if you like, and pin your location so the rider finds you. Pay securely online.</p>
+      </div>
+      <div class="step">
+        <div class="step-n">03</div>
+        <h3>Track it to your door</h3>
+        <p>Your cook accepts, cooks fresh, and a rider is dispatched the moment it's ready. Follow every step live.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ── why ── -->
+<div class="wrap">
+  <section class="band" id="why" style="padding-top:0">
+    <div class="sec-head">
+      <div class="kicker">Why Yummara</div>
+      <h2 class="sec-title">Food that someone actually cooked for you.</h2>
+    </div>
+    <div class="values">
+      <div class="value">
+        <div class="value-ic">
+          <svg viewBox="0 0 20 20" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 2.5 3.5 5.2v4.3c0 3.4 2.6 6.6 6.5 8 3.9-1.4 6.5-4.6 6.5-8V5.2L10 2.5Z"/><path d="m7.4 9.9 1.9 1.9 3.5-3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <h3>Verified kitchens</h3>
+          <p>Every cook is FSSAI-registered and personally onboarded. We know their kitchen, and so can you.</p>
+        </div>
+      </div>
+      <div class="value">
+        <div class="value-ic">
+          <svg viewBox="0 0 20 20" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.2"/><path d="M10 5.6V10l2.9 1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <h3>Cooked after you order</h3>
+          <p>Nothing sits under a heat lamp. Your cook starts when your order lands, so it reaches you fresh.</p>
+        </div>
+      </div>
+      <div class="value">
+        <div class="value-ic">
+          <svg viewBox="0 0 20 20" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 17s-6.2-4-6.2-8.4A6.2 6.2 0 0 1 10 2.6a6.2 6.2 0 0 1 6.2 6c0 4.4-6.2 8.4-6.2 8.4Z"/><circle cx="10" cy="8.6" r="2.2"/></svg>
+        </div>
+        <div>
+          <h3>Genuinely local</h3>
+          <p>Your cook is usually a few streets away. Short distances mean hot food and lower delivery costs.</p>
+        </div>
+      </div>
+      <div class="value">
+        <div class="value-ic">
+          <svg viewBox="0 0 20 20" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 3.2v13.6M6.6 6.1h5.1a2.1 2.1 0 0 1 0 4.2H8.3a2.1 2.1 0 0 0 0 4.2h5.1" stroke-linecap="round"/></svg>
+        </div>
+        <div>
+          <h3>Fair to the cook</h3>
+          <p>100% of every tip reaches your cook. No opaque cuts taken out of what you meant for them.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ── for cooks ── -->
+<div class="wrap">
+  <section class="band" id="cooks" style="padding-top:0">
+    <div class="cook-band">
+      <div>
+        <h2>Your kitchen already works. Let it earn.</h2>
+        <p>
+          If you cook for your family every day, you can cook for your neighbourhood.
+          Set your own menu, your own hours, and your own prices — we handle orders,
+          payments and riders.
+        </p>
+        <a href="/cook.html" class="btn btn-cream btn-lg">Start cooking with Yummara</a>
+      </div>
+      <div class="cook-points">
+        <div class="cook-point"><span class="tick">✓</span><span>Cook only when you want — go offline any day</span></div>
+        <div class="cook-point"><span class="tick">✓</span><span>You set every dish and every price</span></div>
+        <div class="cook-point"><span class="tick">✓</span><span>Riders arranged automatically when food is ready</span></div>
+        <div class="cook-point"><span class="tick">✓</span><span>Keep 100% of the tips your customers leave</span></div>
+        <div class="cook-point"><span class="tick">✓</span><span>Chat directly with customers about their order</span></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ── areas ── -->
+<div class="wrap">
+  <section class="band" id="areas" style="padding-top:0">
+    <div class="sec-head">
+      <div class="kicker">Where we deliver</div>
+      <h2 class="sec-title">Live across Bangalore, growing street by street.</h2>
+      <p class="sec-sub">We open a neighbourhood only once we have cooks there worth ordering from.</p>
+    </div>
+    <div class="areas">
+      <span class="chip">HSR Layout</span>
+      <span class="chip">Indiranagar</span>
+      <span class="chip">Koramangala</span>
+      <span class="chip">Whitefield</span>
+      <span class="chip soon">Jayanagar · soon</span>
+      <span class="chip soon">JP Nagar · soon</span>
+      <span class="chip soon">Marathahalli · soon</span>
+    </div>
+  </section>
+</div>
+
+<!-- ── faq ── -->
+<div class="wrap">
+  <section class="band" id="faq" style="padding-top:0">
+    <div class="sec-head">
+      <div class="kicker">Questions</div>
+      <h2 class="sec-title">Things people ask us.</h2>
+    </div>
+    <div class="faq">
+      <details>
+        <summary>Is the food actually cooked at home?</summary>
+        <p>Yes. Every cook on Yummara cooks from their own home kitchen — not a shared commercial space. That's the whole point.</p>
+      </details>
+      <details>
+        <summary>How do I know it's hygienic?</summary>
+        <p>Every kitchen is FSSAI-registered and onboarded by us before it goes live. Cooks who don't meet the bar don't get listed.</p>
+      </details>
+      <details>
+        <summary>When should I order?</summary>
+        <p>Order by 6 am for lunch tiffins. Outside that, you can order anything a cook has marked available right now.</p>
+      </details>
+      <details>
+        <summary>How long does delivery take?</summary>
+        <p>Most cooks are within a few kilometres of you. Prep time is shown on each kitchen, and a rider is dispatched the moment your food is ready.</p>
+      </details>
+      <details>
+        <summary>Does my tip really reach the cook?</summary>
+        <p>All of it. We don't take a cut of tips — what you add goes to the person who cooked your meal.</p>
+      </details>
+      <details>
+        <summary>I cook at home. How do I join?</summary>
+        <p>Tap <a href="/cook.html" style="color:var(--yum-primary);text-decoration:underline">Cook login</a> and register with your phone number. You'll set up your menu, area and pickup address, and can go live once verified.</p>
+      </details>
+    </div>
+  </section>
+</div>
+
+<!-- ── final cta ── -->
+<div class="wrap">
+  <section class="final">
+    <h2>Hungry yet?</h2>
+    <p>See which kitchens near you are cooking right now.</p>
+    <a href="/" class="btn btn-primary btn-lg">Browse cooks near you</a>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a href="/" class="logo" style="font-size:20px">yummara<i></i></a>
+      <div class="foot-links">
+        <a href="#how">How it works</a>
+        <a href="#why">Why Yummara</a>
+        <a href="#cooks">For cooks</a>
+        <a href="#areas">Areas</a>
+        <a href="#faq">FAQ</a>
+        <a href="/cook.html">Cook login</a>
+      </div>
+      <div class="foot-copy">© 2026 Yummara · Bangalore</div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

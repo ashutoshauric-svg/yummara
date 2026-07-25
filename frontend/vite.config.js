@@ -9,6 +9,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         cook: resolve(__dirname, 'cook.html'),
+        landing: resolve(__dirname, 'landing.html'),
       },
     },
   },
