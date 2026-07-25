@@ -71,7 +71,14 @@ function OrderCard({ order, onStatusChange, token }) {
         headers: { 'Content-Type': 'application/json', ...authH },
         body: JSON.stringify({ status: next }),
       });
-      if (res.ok) onStatusChange(order.id, next);
+      const data = await res.json();
+      if (res.ok) {
+        // Marking an order ready auto-books the rider — reflect that immediately
+        if (data.dispatch?.ok) {
+          setDelivery({ status: 'dispatched', provider: data.dispatch.provider, reason: data.dispatch.reason });
+        }
+        onStatusChange(order.id, next);
+      }
     } catch (e) { console.error('[cook] updateStatus error', e); }
     setBusy(false);
   };
@@ -84,7 +91,7 @@ function OrderCard({ order, onStatusChange, token }) {
       });
       const data = await res.json();
       if (res.ok) {
-        setDelivery({ status: 'dispatched', price: data.price });
+        setDelivery({ status: 'dispatched', provider: data.provider, reason: data.reason });
       } else {
         alert(data.error || 'Could not dispatch rider');
       }
@@ -143,14 +150,23 @@ function OrderCard({ order, onStatusChange, token }) {
         <div>
           {!delivery || delivery.status === 'failed' || delivery.status === 'cancelled' ? (
             <YButton variant="primary" size="md" onClick={dispatchRider} disabled={dispatching}>
-              {dispatching ? 'Dispatching…' : '🛵 Dispatch Rider (Borzo)'}
+              {dispatching ? 'Dispatching…' : '🛵 Dispatch Rider (Adloggs)'}
             </YButton>
-          ) : (
+          ) : delivery.provider === 'adloggs' ? (
             <div style={{ padding: '10px 14px', background: '#e8f5ee', border: '1px solid #5cb87a', borderRadius: 'var(--r-md)', fontSize: 13 }}>
-              <span style={{ fontWeight: 700, color: '#1f6b3a' }}>Rider dispatched</span>
+              <span style={{ fontWeight: 700, color: '#1f6b3a' }}>Rider booked via Adloggs</span>
               {delivery.rider_name && <span style={{ color: 'var(--yum-ink-2)', marginLeft: 8 }}>· {delivery.rider_name}</span>}
               {delivery.rider_phone && <span style={{ color: 'var(--yum-ink-3)', marginLeft: 8 }}>· {delivery.rider_phone}</span>}
-              <span style={{ color: 'var(--yum-ink-3)', marginLeft: 8 }}>· {delivery.status}</span>
+            </div>
+          ) : (
+            <div style={{ padding: '10px 14px', background: '#fef9ec', border: '1px solid #e8d080', borderRadius: 'var(--r-md)', fontSize: 13 }}>
+              <span style={{ fontWeight: 700, color: '#a07c10' }}>No real rider booked</span>
+              <div style={{ color: 'var(--yum-ink-2)', marginTop: 3 }}>
+                {delivery.reason || 'Location details were missing, so this is a placeholder dispatch.'}
+              </div>
+              <YButton variant="ghost" size="sm" onClick={dispatchRider} disabled={dispatching} style={{ marginTop: 6 }}>
+                {dispatching ? 'Retrying…' : 'Retry with Adloggs'}
+              </YButton>
             </div>
           )}
         </div>
@@ -562,9 +578,9 @@ function CookProfileTab({ cook, token, onUpdate }) {
   return (
     <div style={{ maxWidth: 560 }}>
       <div style={{ marginBottom: 24, padding: '14px 18px', background: '#fef9ec', border: '1px solid #e8d080', borderRadius: 'var(--r-md)', fontSize: 13, color: '#a07c10' }}>
-        <strong>Pickup address is required</strong> to dispatch a Borzo rider when orders are ready.
+        <strong>Pickup address and kitchen location are required</strong> to book a real rider when orders are ready. Without both, orders fall back to a placeholder dispatch.
       </div>
-      {field('Pickup address (for Borzo delivery)', 'address', { placeholder: '12 CMH Road, Indiranagar, Bangalore 560038', hint: 'Full street address — this is where the rider picks up food' })}
+      {field('Pickup address', 'address', { placeholder: '12 CMH Road, Indiranagar, Bangalore 560038', hint: 'Full street address — this is where the rider picks up food' })}
 
       <div style={{ marginBottom: 18 }}>
         <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--yum-ink-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.05 }}>Kitchen location</label>

@@ -1,58 +1,17 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const adloggs = require('../lib/adloggs');
+const { dispatchOrder } = require('../lib/dispatch');
 const router = express.Router();
 
-// POST /api/delivery/dispatch/:orderId — cook marks order as dispatched
-// Uses Adloggs when both the cook's pickup location and the customer's delivery location are
-// known; otherwise falls back to a dummy dispatch (older orders / locations not captured yet).
+// POST /api/delivery/dispatch/:orderId — manual re-dispatch (orders are auto-dispatched on 'ready')
 router.post('/dispatch/:orderId', requireAuth, async (req, res) => {
   if (req.user.role !== 'cook') return res.status(403).json({ error: 'Cook only' });
 
-  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.orderId);
-  if (!order) return res.status(404).json({ error: 'Order not found' });
-  if (order.status !== 'ready') return res.status(400).json({ error: 'Order must be marked ready before dispatching' });
+  const result = await dispatchOrder(req.params.orderId, req.app.get('io'));
+  if (!result.ok) return res.status(result.code || 400).json({ error: result.error });
 
-  const existing = db.prepare('SELECT id FROM deliveries WHERE order_id = ? AND status NOT IN (?, ?)').get(order.id, 'cancelled', 'failed');
-  if (existing) return res.status(409).json({ error: 'Delivery already started for this order' });
-
-  const cook = db.prepare('SELECT * FROM cooks WHERE id = ?').get(order.cook_id);
-  const canUseAdloggs = cook?.pickup_lat && cook?.pickup_lng && order.delivery_lat && order.delivery_lng;
-
-  let provider = 'dummy', externalId = `dummy_${order.id}`, riderName = 'Rider assigned', riderPhone = null;
-
-  if (canUseAdloggs) {
-    const items = db.prepare(`
-      SELECT oi.qty, oi.unit_price AS price, d.name
-      FROM order_items oi JOIN dishes d ON oi.dish_id = d.id
-      WHERE oi.order_id = ?
-    `).all(order.id);
-
-    try {
-      const result = await adloggs.createOrder(order, cook, items);
-      if (result.ok && result.data?.data?.order_uuid) {
-        provider = 'adloggs';
-        externalId = result.data.data.order_uuid;
-        riderName = 'Awaiting rider assignment';
-      } else {
-        console.error('[adloggs] create-order rejected:', result.status, JSON.stringify(result.data));
-      }
-    } catch (err) {
-      console.error('[adloggs] create-order failed:', err.message);
-    }
-  }
-
-  db.prepare(`
-    INSERT INTO deliveries (order_id, borzo_order_id, provider, adloggs_order_uuid, status, rider_name, rider_phone, price)
-    VALUES (?, ?, ?, ?, 'dispatched', ?, ?, 0)
-    ON CONFLICT(order_id) DO UPDATE SET provider=excluded.provider, adloggs_order_uuid=excluded.adloggs_order_uuid, status='dispatched', updated_at=datetime('now')
-  `).run(order.id, externalId, provider, provider === 'adloggs' ? externalId : null, riderName, riderPhone);
-
-  const io = req.app.get('io');
-  if (io) io.to(`order_${order.id}`).emit('order_update', { id: order.id, status: order.status, delivery: { status: 'dispatched', provider } });
-
-  res.json({ ok: true, message: 'Delivery started', provider });
+  res.json({ ok: true, message: 'Delivery started', provider: result.provider, reason: result.reason });
 });
 
 // GET /api/delivery/:orderId — get delivery status for an order

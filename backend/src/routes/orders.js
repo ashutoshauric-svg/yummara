@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { dispatchOrder } = require('../lib/dispatch');
 const router = express.Router();
 
 // POST /api/orders — customer places an order
@@ -82,7 +83,7 @@ router.get('/', (req, res) => {
 
 // PUT /api/orders/:id/status — cook updates order status
 // Body: { status: 'accepted' | 'cooking' | 'ready' | 'cancelled' }
-router.put('/:id/status', (req, res) => {
+router.put('/:id/status', async (req, res) => {
   const { status } = req.body;
   const allowed = ['accepted', 'cooking', 'ready', 'cancelled'];
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
@@ -97,7 +98,18 @@ router.put('/:id/status', (req, res) => {
   const io = req.app.get('io');
   io.to(`order:${order.id}`).emit('order_update', updated);
 
-  res.json(updated);
+  // Booking a rider is the natural next step once food is ready — do it automatically rather
+  // than making the cook press a second button. Never fail the status update if dispatch fails.
+  let dispatch = null;
+  if (status === 'ready') {
+    try {
+      dispatch = await dispatchOrder(order.id, io);
+    } catch (err) {
+      console.error('[orders] auto-dispatch failed:', err.message);
+    }
+  }
+
+  res.json({ ...updated, dispatch });
 });
 
 function getOrderWithItems(orderId) {
