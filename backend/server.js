@@ -13,9 +13,14 @@ const STATIC_ORIGINS = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
   : ['http://localhost:5173', 'http://localhost:8080'];
 
-// Allow listed origins plus any Vercel deployment/preview URL of this project
+// Allow listed origins, the production domain (with or without www), and any Vercel
+// deployment/preview URL of this project.
+const ALLOWED_PATTERNS = [
+  /^https:\/\/(www\.)?yummara\.com$/,
+  /^https:\/\/yummara-[a-z0-9-]+\.vercel\.app$/,
+];
 const ALLOWED_ORIGINS = (origin, cb) => {
-  if (!origin || STATIC_ORIGINS.includes(origin) || /^https:\/\/yummara-[a-z0-9-]+\.vercel\.app$/.test(origin)) {
+  if (!origin || STATIC_ORIGINS.includes(origin) || ALLOWED_PATTERNS.some(re => re.test(origin))) {
     return cb(null, true);
   }
   cb(null, false);
