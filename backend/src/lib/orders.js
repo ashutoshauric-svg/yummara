@@ -2,8 +2,10 @@ const db = require('../db');
 
 // Must match the frontend's VITE_DELIVERY_FEE / VITE_PLATFORM_FEE, or the amount charged
 // through Razorpay won't match the order total stored here.
-const DELIVERY_FEE = Number(process.env.DELIVERY_FEE ?? 29);
-const PLATFORM_FEE = Number(process.env.PLATFORM_FEE ?? 12);
+// TESTING: defaults dropped to 1 to keep live-key test charges tiny.
+// REVERT TO 29 / 12 BEFORE TAKING REAL CUSTOMERS.
+const DELIVERY_FEE = Number(process.env.DELIVERY_FEE ?? 1);
+const PLATFORM_FEE = Number(process.env.PLATFORM_FEE ?? 1);
 
 function getOrderWithItems(orderId) {
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);

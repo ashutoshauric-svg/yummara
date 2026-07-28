@@ -281,7 +281,7 @@ function loadRazorpayScript() {
 
 export function CheckoutScreen({ onPlace, isMobile }) {
   const { cart, cartTotal, cartCount, authUser, openAuth } = React.useContext(NavCtx);
-  const [tip, setTip] = React.useState(20);
+  const [tip, setTip] = React.useState(0); // TESTING: was 20 — restore before real customers
   const [address, setAddress] = React.useState('');
   const [deliveryLoc, setDeliveryLoc] = React.useState(null); // { lat, lng }
   const [locating, setLocating] = React.useState(false);
