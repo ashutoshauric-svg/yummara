@@ -52,11 +52,13 @@ async function dispatchOrder(orderId, io) {
     }
   }
 
+  // Persist the fallback reason too — without it the dashboard shows a generic "location
+  // details were missing" message on reload, which misreports why Adloggs actually refused.
   db.prepare(`
-    INSERT INTO deliveries (order_id, borzo_order_id, provider, adloggs_order_uuid, status, rider_name, rider_phone, price)
-    VALUES (?, ?, ?, ?, 'dispatched', ?, NULL, 0)
-    ON CONFLICT(order_id) DO UPDATE SET provider=excluded.provider, adloggs_order_uuid=excluded.adloggs_order_uuid, status='dispatched', rider_name=excluded.rider_name, updated_at=datetime('now')
-  `).run(order.id, externalId, provider, provider === 'adloggs' ? externalId : null, riderName);
+    INSERT INTO deliveries (order_id, borzo_order_id, provider, adloggs_order_uuid, status, rider_name, rider_phone, price, reason)
+    VALUES (?, ?, ?, ?, 'dispatched', ?, NULL, 0, ?)
+    ON CONFLICT(order_id) DO UPDATE SET provider=excluded.provider, adloggs_order_uuid=excluded.adloggs_order_uuid, status='dispatched', rider_name=excluded.rider_name, reason=excluded.reason, updated_at=datetime('now')
+  `).run(order.id, externalId, provider, provider === 'adloggs' ? externalId : null, riderName, reason);
 
   if (io) io.to(`order_${order.id}`).emit('order_update', { id: order.id, status: order.status, delivery: { status: 'dispatched', provider } });
 
