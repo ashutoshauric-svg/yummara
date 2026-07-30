@@ -81,4 +81,16 @@ async function checkAvailability(pickupLat, pickupLng, deliveryLat, deliveryLng)
   });
 }
 
-module.exports = { createOrder, checkAvailability };
+// Adloggs refuses to cancel orders already picked up or on the way.
+async function cancelOrder(orderUuid, description) {
+  return call('/aa/oporder/v1.2/cancel', {
+    order_uuid: orderUuid,
+    order_cancel_description: description || 'Cancelled by restaurant',
+  });
+}
+
+async function getStatus(orderUuid) {
+  return call('/aa/oporder/getcurrentstatus', { order_uuid: orderUuid });
+}
+
+module.exports = { createOrder, checkAvailability, cancelOrder, getStatus };
