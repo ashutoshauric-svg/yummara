@@ -57,16 +57,20 @@ router.get('/:orderId', (req, res) => {
   res.json({ delivery });
 });
 
-// Adloggs sends a numeric order_status_id but never publishes the mapping, so only ids proven
-// against the live sandbox are mapped here:
-//   2 — dashboard showed "Pending" while the API returned 2
-//   6 — returned immediately after a successful cancel, on two separate probe orders
-// Guessing the rest is worse than not mapping: an earlier guess had 6 as "delivered", which
-// showed a cancelled order to the customer as delivered. Unmapped ids are stored raw and the
-// human-readable status is left untouched until Adloggs confirms the full mapping.
+// Adloggs sends a numeric order_status_id but never publishes the mapping. These were captured
+// one at a time from their Test Webhook tool against order 119275 — the ids are not sequential
+// and could not have been inferred (Arrived at pickup is 11, Out for delivery is 9). An earlier
+// guess had 6 as "delivered" when it is actually "cancelled", which showed a cancelled order to
+// the customer as delivered — so unmapped ids are stored raw rather than guessed at.
 const ADLOGGS_STATUS = {
   2: 'pending',
+  3: 'assigned',
+  4: 'picked_up',
+  5: 'delivered',
   6: 'cancelled',
+  9: 'out_for_delivery',
+  11: 'at_pickup',
+  // Still unconfirmed: Return, Arrived, RTO-Delivered
 };
 
 // POST /api/delivery/adloggs/webhook — receives order status pushes from Adloggs.
