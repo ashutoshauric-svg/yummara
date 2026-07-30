@@ -68,9 +68,11 @@ const ADLOGGS_STATUS = {
   4: 'picked_up',
   5: 'delivered',
   6: 'cancelled',
+  8: 'arrived',
   9: 'out_for_delivery',
   11: 'at_pickup',
-  // Still unconfirmed: Return, Arrived, RTO-Delivered
+  14: 'rto_delivered',
+  // Still unconfirmed: Return
 };
 
 // POST /api/delivery/adloggs/webhook — receives order status pushes from Adloggs.
