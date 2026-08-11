@@ -7,8 +7,8 @@ const router = express.Router();
 // POST /api/orders — place an order without payment (cash flows / internal use).
 // Paid orders are created inside POST /api/payment/verify instead, so that a captured
 // payment can never end up without an order behind it.
-router.post('/', (req, res) => {
-  const result = createOrder(req.body);
+router.post('/', async (req, res) => {
+  const result = await createOrder(req.body);
   if (!result.ok) return res.status(result.code || 400).json({ error: result.error });
 
   // Emit socket event to cook's room

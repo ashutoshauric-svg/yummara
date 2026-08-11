@@ -301,13 +301,43 @@ export function CheckoutScreen({ onPlace, isMobile }) {
     );
   };
 
+  // Built from the cart itself, not YUM_INDEX — cooks who registered through the app are not in
+  // that static seed data, so looking them up there left their cart looking empty.
   const groups = React.useMemo(() => {
     const m = {};
-    cart.forEach(it => { (m[it.cookId] ||= { cook: YUM_INDEX.byId[it.cookId], items: [] }).items.push(it); });
+    cart.forEach(it => {
+      const seeded = YUM_INDEX.byId[it.cookId];
+      (m[it.cookId] ||= {
+        cookId: it.cookId,
+        cookShort: it.cookShort || seeded?.short || 'Kitchen',
+        items: [],
+      }).items.push(it);
+    });
     return Object.values(m);
   }, [cart]);
 
-  const deliveryFee = DELIVERY_FEE;
+  // Delivery is whatever Adloggs quotes for this pickup→drop pair, so the fee always covers the
+  // rider. Re-quoted server-side at payment time; this is for display.
+  const [quote, setQuote] = React.useState(null);
+  const [quoting, setQuoting] = React.useState(false);
+  const cookIdForQuote = groups[0]?.cookId;
+
+  React.useEffect(() => {
+    if (!cookIdForQuote || !deliveryLoc) { setQuote(null); return; }
+    let cancelled = false;
+    setQuoting(true);
+    fetch(`${API_URL}/api/delivery/quote`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cookId: cookIdForQuote, lat: deliveryLoc.lat, lng: deliveryLoc.lng }),
+    })
+      .then(r => r.json())
+      .then(q => { if (!cancelled) setQuote(q); })
+      .catch(() => { if (!cancelled) setQuote(null); })
+      .finally(() => { if (!cancelled) setQuoting(false); });
+    return () => { cancelled = true; };
+  }, [cookIdForQuote, deliveryLoc]);
+
+  const deliveryFee = quote?.fee ?? DELIVERY_FEE;
   const platformFee = PLATFORM_FEE;
   const total = cartTotal + deliveryFee + platformFee + tip;
 
@@ -358,25 +388,25 @@ export function CheckoutScreen({ onPlace, isMobile }) {
                 </div>
               )}
               {locError && <div style={{ fontSize: 11, color: '#c0392b', marginTop: 4 }}>{locError}</div>}
+              {quote?.unavailable && (
+                <div style={{ marginTop: 8, padding: '10px 14px', background: '#fdeceb', border: '1px solid #e5a49c', borderRadius: 'var(--r-md)', fontSize: 13, color: '#8c2f22' }}>
+                  {quote.message || 'We cannot deliver to this address.'}
+                </div>
+              )}
             </div>
           </Block>
 
           <Block title="From the kitchens" kicker="02">
-            {groups.map(({ cook, items }) => (
-              cook ? (
-                <div key={cook.id} style={{ background: 'var(--yum-paper)', border: '1px solid var(--yum-border-soft)', borderRadius: 'var(--r-md)', padding: 14, marginBottom: 10 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{cook.short}'s kitchen</div>
-                  {items.map(it => {
-                    const d = cook.dishes.find(x => x.id === it.dishId);
-                    return d ? (
-                      <div key={it.dishId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--yum-ink-2)', padding: '3px 0' }}>
-                        <span>{d.name} <span className="num" style={{ color: 'var(--yum-ink-3)' }}>×{it.qty}</span></span>
-                        <span className="num">₹{d.price * it.qty}</span>
-                      </div>
-                    ) : null;
-                  })}
-                </div>
-              ) : null
+            {groups.map(({ cookId, cookShort, items }) => (
+              <div key={cookId} style={{ background: 'var(--yum-paper)', border: '1px solid var(--yum-border-soft)', borderRadius: 'var(--r-md)', padding: 14, marginBottom: 10 }}>
+                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{cookShort}'s kitchen</div>
+                {items.map(it => (
+                  <div key={it.dishId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--yum-ink-2)', padding: '3px 0' }}>
+                    <span>{it.name} <span className="num" style={{ color: 'var(--yum-ink-3)' }}>×{it.qty}</span></span>
+                    <span className="num">₹{it.price * it.qty}</span>
+                  </div>
+                ))}
+              </div>
             ))}
           </Block>
 
@@ -393,7 +423,10 @@ export function CheckoutScreen({ onPlace, isMobile }) {
           <div style={{ background: 'var(--yum-paper)', border: '1px solid var(--yum-border-soft)', borderRadius: 'var(--r-lg)', padding: 22 }}>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 500, marginBottom: 14 }}>Order summary</div>
             <Row label="Items" value={`₹${cartTotal}`}/>
-            <Row label="Delivery" value={`₹${deliveryFee}`}/>
+            <Row
+              label={quote?.distance ? `Delivery · ${quote.distance} km` : 'Delivery'}
+              value={quoting ? '…' : quote?.unavailable ? '—' : `₹${deliveryFee}`}
+            />
             <Row label="Platform fee" value={`₹${platformFee}`} sub/>
             <Row label="Tip" value={`₹${tip}`}/>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '1px dashed var(--yum-border)' }}>
@@ -407,13 +440,15 @@ export function CheckoutScreen({ onPlace, isMobile }) {
                 if (!/^\d{10}$/.test(customerPhone)) { alert('Please enter a valid 10-digit phone'); return; }
                 if (!address.trim()) { alert('Please enter delivery address'); return; }
                 if (!deliveryLoc) { alert('Please tap "Use my current location" — your rider needs exact coordinates to find you.'); return; }
+                if (quoting) { alert('Still checking delivery availability — one moment.'); return; }
+                if (quote?.unavailable) { alert(quote.message || 'Sorry, we cannot deliver to this address.'); return; }
 
                 const firstGroup = groups[0];
-                if (!firstGroup?.cook) { alert('Your cart is empty'); return; }
+                if (!firstGroup) { alert('Your cart is empty'); return; }
                 const orderPayload = {
                   customerName: customerName.trim(),
                   customerPhone: String(customerPhone),
-                  cookId: firstGroup.cook.id,
+                  cookId: firstGroup.cookId,
                   items: firstGroup.items.map(it => ({ dishId: it.dishId, qty: it.qty })),
                   tip: tip || 0,
                   address,
@@ -428,9 +463,10 @@ export function CheckoutScreen({ onPlace, isMobile }) {
 
                   const headers = { 'Content-Type': 'application/json' };
                   if (authUser?.token) headers['Authorization'] = `Bearer ${authUser.token}`;
+                  // Amount is priced server-side from the order, not sent from here.
                   const orderRes = await fetch(`${API_URL}/api/payment/create-order`, {
                     method: 'POST', headers,
-                    body: JSON.stringify({ amount: total }),
+                    body: JSON.stringify({ order: orderPayload }),
                   });
                   const orderData = await orderRes.json();
                   if (!orderRes.ok) throw new Error(orderData.error || 'Could not create order');

@@ -3,6 +3,7 @@ const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
 const { dispatchOrder } = require('../lib/dispatch');
 const adloggs = require('../lib/adloggs');
+const { quoteDeliveryFee } = require('../lib/orders');
 const router = express.Router();
 
 // POST /api/delivery/dispatch/:orderId — manual re-dispatch (orders are auto-dispatched on 'ready')
@@ -13,6 +14,23 @@ router.post('/dispatch/:orderId', requireAuth, async (req, res) => {
   if (!result.ok) return res.status(result.code || 400).json({ error: result.error });
 
   res.json({ ok: true, message: 'Delivery started', provider: result.provider, reason: result.reason });
+});
+
+// POST /api/delivery/quote — what Adloggs will charge for this delivery, for the checkout
+// to show before payment. Body: { cookId, lat, lng }. The amount actually charged is priced
+// again server-side at payment time; this is display only.
+router.post('/quote', async (req, res) => {
+  const { cookId, lat, lng } = req.body || {};
+  if (!cookId) return res.status(400).json({ error: 'cookId required' });
+
+  const q = await quoteDeliveryFee(cookId, lat, lng);
+  res.json({
+    fee: q.fee,
+    quoted: q.quoted,
+    distance: q.distance ?? null,
+    unavailable: !!q.unavailable,
+    message: q.error ?? null,
+  });
 });
 
 // POST /api/delivery/cancel/:orderId — cancel the Adloggs booking from our side.

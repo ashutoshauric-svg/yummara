@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
-const { createOrder } = require('../lib/orders');
+const { createOrder, priceOrder } = require('../lib/orders');
 const router = express.Router();
 
 const razorpay = new Razorpay({
@@ -10,20 +10,39 @@ const razorpay = new Razorpay({
 });
 
 // POST /api/payment/create-order
+// Body: { order } — the amount is priced here from DB prices and a live Adloggs quote rather
+// than taken from the client, so the charge always matches the order we go on to create.
 router.post('/create-order', async (req, res) => {
-  const { amount } = req.body; // amount in rupees from frontend
-  if (!amount || amount < 1) return res.status(400).json({ error: 'Invalid amount' });
+  const { order } = req.body;
+  if (!order) return res.status(400).json({ error: 'Missing order details' });
 
-  const amountPaise = Math.round(amount * 100);
+  const priced = await priceOrder(order);
+  if (!priced.ok) return res.status(priced.code || 400).json({ error: priced.error });
+  if (priced.quote.unavailable) {
+    return res.status(400).json({ error: priced.quote.error || 'Delivery not available to this address' });
+  }
+
+  const amountPaise = Math.round(priced.total * 100);
   if (amountPaise < 100) return res.status(400).json({ error: 'Minimum order amount is ₹1' });
 
   try {
-    const order = await razorpay.orders.create({
+    const rzpOrder = await razorpay.orders.create({
       amount: amountPaise,
       currency: 'INR',
       receipt: `yum_${Date.now()}`,
     });
-    res.json({ order_id: order.id, amount: order.amount, currency: order.currency });
+    res.json({
+      order_id: rzpOrder.id,
+      amount: rzpOrder.amount,
+      currency: rzpOrder.currency,
+      breakdown: {
+        items: priced.itemsTotal,
+        delivery: priced.deliveryFee,
+        platform: priced.platformFee,
+        tip: Number(order.tip || 0),
+        total: priced.total,
+      },
+    });
   } catch (err) {
     console.error('[Razorpay] create-order error:', err);
     res.status(500).json({ error: 'Could not create payment order' });
@@ -34,7 +53,7 @@ router.post('/create-order', async (req, res) => {
 // Verifies the signature AND creates the order in the same request. Creating the order in a
 // separate follow-up call meant any failure in between (crash, deploy, dropped connection) left
 // the customer charged with no order for the cook to see.
-router.post('/verify', (req, res) => {
+router.post('/verify', async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order } = req.body;
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
     return res.status(400).json({ error: 'Missing payment fields' });
@@ -51,7 +70,7 @@ router.post('/verify', (req, res) => {
 
   if (!order) return res.json({ ok: true, payment_id: razorpay_payment_id, order: null });
 
-  const result = createOrder(order);
+  const result = await createOrder(order);
   if (!result.ok) {
     // Payment is already captured — surface it loudly so it can be reconciled or refunded
     // rather than silently swallowed.
