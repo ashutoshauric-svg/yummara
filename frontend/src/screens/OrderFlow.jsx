@@ -335,6 +335,19 @@ export function CheckoutScreen({ onPlace, isMobile }) {
   const [quoting, setQuoting] = React.useState(false);
   const cookIdForQuote = groups[0]?.cookId;
 
+  // Pickup details come from the API rather than the cart, so a cook editing their address or
+  // kitchen pin is reflected here as soon as they save — cart items hold a stale copy.
+  const [pickup, setPickup] = React.useState(null);
+  React.useEffect(() => {
+    if (!cookIdForQuote) { setPickup(null); return; }
+    let cancelled = false;
+    fetch(`${API_URL}/api/cooks/${cookIdForQuote}`)
+      .then(r => r.json())
+      .then(c => { if (!cancelled && c?.id) setPickup(c); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [cookIdForQuote, quote]);
+
   React.useEffect(() => {
     if (!cookIdForQuote || !deliveryLoc) { setQuote(null); return; }
     let cancelled = false;
@@ -435,6 +448,18 @@ export function CheckoutScreen({ onPlace, isMobile }) {
             {groups.map(({ cookId, cookShort, items }) => (
               <div key={cookId} style={{ background: 'var(--yum-paper)', border: '1px solid var(--yum-border-soft)', borderRadius: 'var(--r-md)', padding: 14, marginBottom: 10 }}>
                 <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>{cookShort}'s kitchen</div>
+
+                {pickup?.id === cookId && (
+                  <div style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px dashed var(--yum-border)', fontSize: 12, color: 'var(--yum-ink-3)', lineHeight: 1.5 }}>
+                    <div>Picked up from: <span style={{ color: 'var(--yum-ink-2)' }}>{pickup.address || pickup.area || '—'}</span></div>
+                    {pickup.pickup_lat && pickup.pickup_lng ? (
+                      <div className="num">Pin: {Number(pickup.pickup_lat).toFixed(5)}, {Number(pickup.pickup_lng).toFixed(5)}</div>
+                    ) : (
+                      <div style={{ color: '#a07c10' }}>Kitchen pin not set — a rider cannot be booked for this order yet.</div>
+                    )}
+                  </div>
+                )}
+
                 {items.map(it => (
                   <div key={it.dishId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--yum-ink-2)', padding: '3px 0' }}>
                     <span>{it.name} <span className="num" style={{ color: 'var(--yum-ink-3)' }}>×{it.qty}</span></span>
