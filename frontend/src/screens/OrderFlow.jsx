@@ -4,7 +4,7 @@ import { DishCard } from '../components/cards';
 import { NavCtx, useNav } from '../lib/NavCtx';
 import { YUM_INDEX } from '../data/cooks';
 import { CustomerChatPanel } from './Chat';
-import { API_URL, DELIVERY_FEE, PLATFORM_FEE } from '../lib/config';
+import { API_URL, DELIVERY_FEE, PLATFORM_FEE, validateLatLng } from '../lib/config';
 
 // ─── Shared header ────────────────────────────────────────────────
 function ScreenHeader({ title, subtitle, right, isMobile }) {
@@ -290,6 +290,10 @@ export function CheckoutScreen({ onPlace, isMobile }) {
   const [customerPhone, setCustomerPhone] = React.useState(authUser?.user?.phone || '');
   const [paying, setPaying] = React.useState(false);
 
+  const [manualOpen, setManualOpen] = React.useState(false);
+  const [manualLat, setManualLat] = React.useState('');
+  const [manualLng, setManualLng] = React.useState('');
+
   const captureLocation = () => {
     if (!navigator.geolocation) { setLocError('Location not supported on this device'); return; }
     setLocating(true);
@@ -299,6 +303,15 @@ export function CheckoutScreen({ onPlace, isMobile }) {
       (err) => { setLocError(err.message || 'Could not get location'); setLocating(false); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  };
+
+  const applyManualLocation = () => {
+    const lat = Number(manualLat), lng = Number(manualLng);
+    const err = validateLatLng(manualLat, manualLng);
+    if (err) { setLocError(err); return; }
+    setLocError('');
+    setDeliveryLoc({ lat, lng });
+    setManualOpen(false);
   };
 
   // Built from the cart itself, not YUM_INDEX — cooks who registered through the app are not in
@@ -372,9 +385,10 @@ export function CheckoutScreen({ onPlace, isMobile }) {
               style={{ width: '100%', height: 44, padding: '0 14px', background: 'var(--yum-paper)', border: '1px solid var(--yum-border)', borderRadius: 'var(--r-md)', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}/>
             <div style={{ marginTop: 10 }}>
               {deliveryLoc ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--yum-primary-50)', border: '1px solid var(--yum-primary-100)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--yum-primary-700)' }}>
-                  <span>Location pinned</span>
-                  <YButton variant="ghost" size="sm" onClick={captureLocation} disabled={locating}>{locating ? 'Locating…' : 'Update'}</YButton>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: 'var(--yum-primary-50)', border: '1px solid var(--yum-primary-100)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--yum-primary-700)' }}>
+                  <span className="num">Pinned · {deliveryLoc.lat.toFixed(5)}, {deliveryLoc.lng.toFixed(5)}</span>
+                  <YButton variant="ghost" size="sm" onClick={captureLocation} disabled={locating}>{locating ? 'Locating…' : 'Use my location'}</YButton>
+                  <YButton variant="ghost" size="sm" onClick={() => { setManualLat(String(deliveryLoc.lat)); setManualLng(String(deliveryLoc.lng)); setManualOpen(true); }}>Edit coordinates</YButton>
                 </div>
               ) : (
                 // Required: without coordinates no rider can be booked, so we must not let the
@@ -382,9 +396,30 @@ export function CheckoutScreen({ onPlace, isMobile }) {
                 <div style={{ padding: '12px 14px', background: '#fef9ec', border: '1px solid #e8d080', borderRadius: 'var(--r-md)' }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#a07c10', marginBottom: 2 }}>Pin your location — required</div>
                   <div style={{ fontSize: 12, color: 'var(--yum-ink-2)', marginBottom: 8 }}>Your rider needs exact coordinates to find you.</div>
-                  <YButton variant="primary" size="sm" onClick={captureLocation} disabled={locating}>
-                    {locating ? 'Getting location…' : 'Use my current location'}
-                  </YButton>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <YButton variant="primary" size="sm" onClick={captureLocation} disabled={locating}>
+                      {locating ? 'Getting location…' : 'Use my current location'}
+                    </YButton>
+                    <YButton variant="secondary" size="sm" onClick={() => setManualOpen(o => !o)}>
+                      Enter coordinates
+                    </YButton>
+                  </div>
+                </div>
+              )}
+
+              {manualOpen && (
+                <div style={{ marginTop: 8, padding: '12px 14px', background: 'var(--yum-paper)', border: '1px solid var(--yum-border)', borderRadius: 'var(--r-md)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--yum-ink-3)', marginBottom: 8 }}>
+                    Paste from Google Maps — right-click a spot, click the coordinates to copy, then split them here.
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <input value={manualLat} onChange={e => setManualLat(e.target.value)} placeholder="Latitude · 12.97840" inputMode="decimal"
+                      style={{ flex: '1 1 130px', height: 38, padding: '0 12px', border: '1px solid var(--yum-border)', borderRadius: 'var(--r-md)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}/>
+                    <input value={manualLng} onChange={e => setManualLng(e.target.value)} placeholder="Longitude · 77.64080" inputMode="decimal"
+                      style={{ flex: '1 1 130px', height: 38, padding: '0 12px', border: '1px solid var(--yum-border)', borderRadius: 'var(--r-md)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}/>
+                    <YButton variant="primary" size="sm" onClick={applyManualLocation}>Set</YButton>
+                    <YButton variant="ghost" size="sm" onClick={() => { setManualOpen(false); setLocError(''); }}>Cancel</YButton>
+                  </div>
                 </div>
               )}
               {locError && <div style={{ fontSize: 11, color: '#c0392b', marginTop: 4 }}>{locError}</div>}

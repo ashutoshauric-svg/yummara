@@ -4,7 +4,7 @@ import { YButton, Veg, NonVeg } from '../components/ui';
 import { AuthModal } from './Auth';
 import { loadAuth, saveAuth, clearAuth } from '../lib/auth';
 import { CookInbox } from './Chat';
-import { API_URL as API } from '../lib/config';
+import { API_URL as API, validateLatLng } from '../lib/config';
 
 const CLOUDINARY_CLOUD = 'djhkavj7s';
 const CLOUDINARY_PRESET = 'yummara_dishes';
@@ -532,6 +532,17 @@ function CookProfileTab({ cook, token, onUpdate }) {
   const [saved, setSaved] = React.useState(false);
   const [locating, setLocating] = React.useState(false);
   const [locError, setLocError] = React.useState('');
+  const [manualOpen, setManualOpen] = React.useState(false);
+  const [manualLat, setManualLat] = React.useState('');
+  const [manualLng, setManualLng] = React.useState('');
+
+  const applyManualLocation = () => {
+    const err = validateLatLng(manualLat, manualLng);
+    if (err) { setLocError(err); return; }
+    setLocError('');
+    setForm(f => ({ ...f, lat: Number(manualLat), lng: Number(manualLng) }));
+    setManualOpen(false);
+  };
 
   const captureLocation = () => {
     if (!navigator.geolocation) { setLocError('Location not supported on this device'); return; }
@@ -585,17 +596,36 @@ function CookProfileTab({ cook, token, onUpdate }) {
       <div style={{ marginBottom: 18 }}>
         <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--yum-ink-3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.05 }}>Kitchen location</label>
         {form.lat && form.lng ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--yum-primary-50)', border: '1px solid var(--yum-primary-100)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--yum-primary-700)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '10px 14px', background: 'var(--yum-primary-50)', border: '1px solid var(--yum-primary-100)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--yum-primary-700)' }}>
             <span>Location set ({form.lat.toFixed(5)}, {form.lng.toFixed(5)})</span>
-            <YButton variant="ghost" size="sm" onClick={captureLocation} disabled={locating}>{locating ? 'Locating…' : 'Update'}</YButton>
+            <YButton variant="ghost" size="sm" onClick={captureLocation} disabled={locating}>{locating ? 'Locating…' : 'Use my location'}</YButton>
+            <YButton variant="ghost" size="sm" onClick={() => { setManualLat(String(form.lat)); setManualLng(String(form.lng)); setManualOpen(true); }}>Edit coordinates</YButton>
           </div>
         ) : (
-          <YButton variant="secondary" onClick={captureLocation} disabled={locating}>
-            {locating ? 'Getting location…' : 'Set my kitchen location'}
-          </YButton>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <YButton variant="secondary" onClick={captureLocation} disabled={locating}>
+              {locating ? 'Getting location…' : 'Set my kitchen location'}
+            </YButton>
+            <YButton variant="secondary" onClick={() => setManualOpen(o => !o)}>Enter coordinates</YButton>
+          </div>
+        )}
+        {manualOpen && (
+          <div style={{ marginTop: 8, padding: '12px 14px', background: 'var(--yum-paper)', border: '1px solid var(--yum-border)', borderRadius: 'var(--r-md)' }}>
+            <div style={{ fontSize: 11, color: 'var(--yum-ink-3)', marginBottom: 8 }}>
+              Paste from Google Maps — right-click your kitchen on the map, click the coordinates to copy, then split them here.
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input value={manualLat} onChange={e => setManualLat(e.target.value)} placeholder="Latitude · 12.97840" inputMode="decimal"
+                style={{ flex: '1 1 130px', height: 38, padding: '0 12px', border: '1px solid var(--yum-border)', borderRadius: 'var(--r-md)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}/>
+              <input value={manualLng} onChange={e => setManualLng(e.target.value)} placeholder="Longitude · 77.64080" inputMode="decimal"
+                style={{ flex: '1 1 130px', height: 38, padding: '0 12px', border: '1px solid var(--yum-border)', borderRadius: 'var(--r-md)', fontSize: 13, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}/>
+              <YButton variant="primary" size="sm" onClick={applyManualLocation}>Set</YButton>
+              <YButton variant="ghost" size="sm" onClick={() => { setManualOpen(false); setLocError(''); }}>Cancel</YButton>
+            </div>
+          </div>
         )}
         {locError && <div style={{ fontSize: 11, color: '#c0392b', marginTop: 4 }}>{locError}</div>}
-        <div style={{ fontSize: 11, color: 'var(--yum-ink-4)', marginTop: 4 }}>Stand in your kitchen and tap this — riders use it as the exact pickup pin.</div>
+        <div style={{ fontSize: 11, color: 'var(--yum-ink-4)', marginTop: 4 }}>Riders use this as the exact pickup pin — remember to Save profile below.</div>
       </div>
 
       {field('Neighbourhood / Area', 'area', { placeholder: 'Indiranagar' })}
